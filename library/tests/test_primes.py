@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.5.1"
+    assert voss.__version__ == "0.5.2"
 
 
 @skip_no_cuda
@@ -592,3 +592,48 @@ def test_sophie_germain_rejected_on_minimal():
     with voss.primes.Context(1000, profile="minimal") as ctx:
         with pytest.raises(voss.VossError):
             ctx.sophie_germain()
+
+
+# ============================================================
+# M5.2 — factorize
+# ============================================================
+
+@skip_no_cuda
+def test_factorize_small():
+    import voss
+    assert voss.primes.factorize(2) == [2]
+    assert voss.primes.factorize(4) == [2, 2]
+    assert voss.primes.factorize(12) == [2, 2, 3]
+    assert voss.primes.factorize(100) == [2, 2, 5, 5]
+    assert voss.primes.factorize(1000) == [2, 2, 2, 5, 5, 5]
+
+
+@skip_no_cuda
+def test_factorize_prime():
+    import voss
+    assert voss.primes.factorize(7919) == [7919]
+    assert voss.primes.factorize(1000003) == [1000003]
+    assert voss.primes.factorize(2147483647) == [2147483647]  # 2^31-1
+
+
+@skip_no_cuda
+def test_factorize_large():
+    import voss
+    # Project Euler #3
+    assert voss.primes.factorize(600851475143) == [71, 839, 1471, 6857]
+
+
+@skip_no_cuda
+def test_factorize_power_of_two():
+    import voss
+    assert voss.primes.factorize(1024) == [2] * 10
+
+
+def test_factorize_invalid():
+    import voss
+    with pytest.raises(voss.VossError):
+        voss.primes.factorize(0)
+    with pytest.raises(voss.VossError):
+        voss.primes.factorize(1)
+    with pytest.raises(TypeError):
+        voss.primes.factorize("hello")

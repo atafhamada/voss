@@ -118,6 +118,16 @@ int voss_primes_prev(uint64_t x, uint64_t* out_prime);
 // Result written to *out: 1 = prime, 0 = not prime.
 int voss_primes_is_prime(uint64_t x, int* out);
 
+// ============================================================
+// Factorization (M5.2)
+// ============================================================
+// Factorize x into its prime factors (with multiplicity), sorted ascending.
+// Returns a malloc'd array in *out_array (freed by voss_free) and count.
+// x must be >= 2.
+int voss_primes_factorize(uint64_t x,
+                          uint64_t** out_array,
+                          uint64_t* out_count);
+
 #ifdef __cplusplus
 }
 #endif

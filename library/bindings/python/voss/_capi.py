@@ -181,6 +181,16 @@ _lib.voss_primes_ctx_sophie_germain.argtypes = [
 ]
 _lib.voss_primes_ctx_sophie_germain.restype = ctypes.c_int
 
+_lib.voss_primes_factorize.argtypes = [
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.POINTER(ctypes.c_uint64)),
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_factorize.restype = ctypes.c_int
+
+_lib.voss_free.argtypes = [ctypes.c_void_p]
+_lib.voss_free.restype = None
+
 
 # === Error codes (mirror voss.h) ===
 VOSS_OK = 0

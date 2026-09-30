@@ -47,6 +47,7 @@ set(VOSS_SOURCES
     src/primes/range.cu
     src/primes/nth.cu
     src/primes/next_prev.cu
+    src/primes/factorize.cpp
 )
 
 # Static library

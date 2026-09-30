@@ -654,3 +654,38 @@ def is_prime(x: int) -> bool:
         ctypes.c_uint64(x), ctypes.byref(out))
     _capi._check(rc, _ERRMAP)
     return out.value == 1
+
+
+def factorize(x: int) -> list:
+    """Factorize x into its prime factors (with multiplicity), sorted ascending.
+
+    Uses Pollard rho + Miller-Rabin (deterministic).
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.factorize(12)
+    [2, 2, 3]
+    >>> voss.primes.factorize(1000000007)  # prime
+    [1000000007]
+    >>> voss.primes.factorize(600851475143)
+    [71, 839, 1471, 6857]
+    """
+    if not isinstance(x, int):
+        raise TypeError(f"x must be int, got {type(x).__name__}")
+    if x < 2:
+        raise VossInvalidNError(f"x must be >= 2, got {x}")
+
+    arr = ctypes.POINTER(ctypes.c_uint64)()
+    count = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_factorize(
+        ctypes.c_uint64(x), ctypes.byref(arr), ctypes.byref(count))
+    _capi._check(rc, _ERRMAP)
+
+    n = count.value
+    if n == 0:
+        return []
+    try:
+        return [int(arr[i]) for i in range(n)]
+    finally:
+        _capi._lib.voss_free(arr)
