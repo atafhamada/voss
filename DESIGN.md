@@ -64,16 +64,23 @@
 
 ## 1.4 What VOSS Does Not Do
 
-**[Decision]** — deferred:
+**[Decision]** — planned for M5 (primes section completion):
 
-- is_prime for single number → later
-- Factorization → later
-- Mersenne/Fermat primes → later
-- Goldbach → later
+- is_prime for single number → M5.1
+- Sophie Germain primes → M5.1
+- Factorization (Pollard rho) → M5.2
+- Mersenne primes → M5.3
+- Fermat primes → M5.3
+- Goldbach partitions → M5.4
+
+**[Decision]** — deferred to v2.0+:
+
 - General numbers section → later
 - Mathematics section → later
 - ML → later
 - Cloud API → later
+- N > 10^13 (streaming) → v2.0+
+- Multi-GPU / Cluster → v2.0+
 
 **Current limits**:
 - 10¹³ full (FULL)
@@ -705,9 +712,18 @@ voss/
 | M2 | 3 weeks | twins, cousin, sexy |
 | M3 | 2 weeks | range, nth, next/prev |
 | M4 | 2 weeks | statistics + CSV + large gaps |
-| M5 | 2 weeks | comprehensive tests + CI + docs |
+| M5.0 | 2 weeks | comprehensive tests + CI + docs |
+| M5.1 | 1 week | is_prime + Sophie Germain |
+| M5.2 | 1 week | Factorization (Pollard rho) |
+| M5.3 | 1 week | Mersenne + Fermat |
+| M5.4 | 1 week | Goldbach partitions |
 
-**Total**: 13-15 weeks (~3.5 months) until `v0.5.0`.
+**Total**: 18-20 weeks (~4.5-5 months) until `v0.5.0`.
+
+**Note**: M5 was originally scoped as a single phase. It was expanded on
+2026-09-30 to include the 6 remaining primes-section functions (Group A).
+Each sub-phase ships as a patch release (v0.4.1, v0.4.2, ...) before the
+next begins.
 
 ## 6.3 M0 — Details
 
@@ -799,6 +815,16 @@ assert voss.primes.prev(10**9) == 999_999_937
 **Expected**: v1.0.0, 500-2000 users, updated arXiv paper, start of general numbers section
 
 **Not expected**: ML, Cloud API, large community, funding
+
+---
+
+---
+
+## Changelog
+
+- **2026-09-30** — M5 expanded into M5.0-M5.4 to include Group A functions
+  (is_prime, Sophie Germain, Factorization, Mersenne, Fermat, Goldbach).
+  Total v0.5.0 timeline: 13-15 weeks → 18-20 weeks.
 
 ---
 
