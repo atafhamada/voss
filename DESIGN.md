@@ -526,7 +526,7 @@ Default: STANDARD.
 ## 4.12 Git
 
 **[Decision]**:
-- Monorepo: `voss-prime-gaps`
+- Monorepo: `voss`
 - Branch: `main`
 - Tags on Git
 - Source on GitHub, wheels on PyPI
@@ -567,7 +567,7 @@ Default: STANDARD.
 **[Decision]**:
 
 ```
-voss-prime-gaps/
+voss/
 ├── README.md
 ├── LICENSE                  ← BSL-1.1
 ├── LICENSE-APACHE
@@ -601,7 +601,7 @@ voss-prime-gaps/
 ## 5.6 Package Name
 
 **[Decision]**:
-- PyPI: `voss` (reserved on PyPI as of this release) + `voss-prime-gaps` (later if needed)
+- PyPI: `voss` (reserved on PyPI as of this release) + `voss` (later if needed)
 - Python import: `voss`
 - Extras: `voss[numbers]`, `voss[math]` later
 
