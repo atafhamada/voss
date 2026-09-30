@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.4.4"
+    assert voss.__version__ == "0.4.5"
 
 
 @skip_no_cuda
@@ -515,3 +515,19 @@ def test_export_csv_content(tmp_path):
             break
     else:
         raise AssertionError("total_gaps line not found")
+
+
+# ============================================================
+# M5 perf test — small N should be fast
+# ============================================================
+
+@skip_no_cuda
+def test_small_n_is_fast():
+    """N=10^6 should take <100 ms (was 296 ms before dynamic SEG_NUM)."""
+    import time
+    import voss
+    with voss.primes.Context(10**6) as ctx:
+        t0 = time.time()
+        ctx.prime_count()
+        t1 = time.time()
+    assert (t1 - t0) < 0.1, f"N=10^6 took {t1-t0:.3f}s, expected <0.1s"

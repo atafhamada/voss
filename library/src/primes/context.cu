@@ -244,7 +244,15 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
 
         // Segment size chosen to fit within Colab A100 memory (~40 GB).
     // Positions + thrust temp must fit: see M4 fix.
-    const int64_t SEG_NUM  = 50000000010LL;   // 5 * 10^10 + 10
+    // Dynamic segment size: for small N, don't over-allocate.
+    // Cap at 5e10 for Colab A100 memory (~40 GB usable).
+    const int64_t MAX_SEG_NUM = 50000000010LL;
+    int64_t SEG_NUM;
+    if ((int64_t)N < MAX_SEG_NUM) {
+        SEG_NUM = (((int64_t)N + 29) / 30) * 30 + 10;
+    } else {
+        SEG_NUM = MAX_SEG_NUM;
+    }
         const int64_t SEG_K    = SEG_NUM / 30;
         const int64_t SEG_BITS = SEG_K * 8;
         const int64_t NUM_SEG  = (N + SEG_NUM - 1) / SEG_NUM;
@@ -255,8 +263,12 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
         // Per-segment buffer size (v7-golden pattern).
     // Each segment covers SEG_NUM = 10^11 numbers, containing at most
     // ~4.3 * 10^9 primes. Buffer is reused across segments.
-    // Max primes per 5e10 segment: ~2.1e9 (first segment). 2.2e9 with margin.
-    int64_t max_pos = 2200000000LL;  // 2.2e9 positions = 17.6 GB
+    // Dynamic position buffer: ~SEG_NUM / ln(SEG_NUM) * 1.3 primes expected.
+    // Cap at 2.2e9 (for the maximum 5e10 segment).
+    double est = (double)SEG_NUM / std::log((double)SEG_NUM) * 1.3;
+    int64_t max_pos = (int64_t)est + 1000;
+    if (max_pos > 2200000000LL) max_pos = 2200000000LL;
+    if (max_pos < 100) max_pos = 100;
 
         int64_t seg_words = (SEG_BITS + 31) / 32;
         size_t bits_bytes = (size_t)seg_words * sizeof(uint32_t);
