@@ -100,6 +100,21 @@ subprocess.run(["git", "config", "user.name", "Ataf Hamada"])
 - STATE.md - this file
 - library/README.md - build instructions
 
+## Test evidence (as of v0.3.1)
+
+Comprehensive testing has been performed at N = 2..10^9:
+
+- **Stage 1**: N = 101..1000 (900 consecutive values) — all match sympy
+- **Stage 2**: 1000 random samples in [2, 10^6] — all match sympy
+- **Stage 3**: 29 boundary values (powers, primes, segment boundaries) — all match
+- **Stage 4**: 500 sequential Contexts — 0 MB GPU memory leak
+- **Stage 5**: Reproduce v0.3.0 crash scenario — no crash
+- **Stage 6**: Cross-profile consistency (minimal/standard/full) — all agree
+
+Exhaustive N = 2..100 tested; all values match sympy reference.
+
+**Not yet tested**: N > 10^9 (multi-segment), thread safety, CUDA memcheck.
+
 ## Milestones remaining
 
 - M2: twins, cousin, sexy (in progress)
