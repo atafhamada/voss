@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.4.2"
+    assert voss.__version__ == "0.4.3"
 
 
 @skip_no_cuda
@@ -428,3 +428,55 @@ def test_chebyshev_repr():
     r = repr(cb)
     assert "pi_4_1" in r
     assert "difference" in r
+
+
+# ============================================================
+# M4 part 4 — Large gaps
+# ============================================================
+
+@skip_no_cuda
+def test_large_gaps_empty_at_10e9():
+    """No gaps >= 500 until ~10^11."""
+    import voss
+    with voss.primes.Context(10**9) as ctx:
+        gaps = ctx.large_gaps()
+    assert gaps == []
+
+
+@skip_no_cuda
+def test_large_gaps_10e12():
+    """At 10^12, there are 11 gaps >= 500."""
+    import voss
+    with voss.primes.Context(10**12) as ctx:
+        gaps = ctx.large_gaps()
+    assert len(gaps) == 11
+    # Largest gap at 10^12: 540, at position 738,832,928,467
+    assert gaps[0].gap == 540
+    assert gaps[0].position == 738_832_928_467
+    # All should be sorted descending
+    for i in range(len(gaps) - 1):
+        assert gaps[i].gap >= gaps[i+1].gap
+
+
+@skip_no_cuda
+def test_large_gaps_caching():
+    import voss
+    with voss.primes.Context(10**9) as ctx:
+        g1 = ctx.large_gaps()
+        g2 = ctx.large_gaps()
+    assert g1 is g2
+
+
+def test_large_gaps_rejected_on_minimal():
+    import voss
+    with voss.primes.Context(10**9, profile="minimal") as ctx:
+        with pytest.raises(voss.VossError):
+            ctx.large_gaps()
+
+
+@skip_no_cuda
+def test_large_gap_repr():
+    import voss
+    g = voss.primes.LargeGap(position=100, gap=500)
+    assert "position" in repr(g)
+    assert "gap" in repr(g)

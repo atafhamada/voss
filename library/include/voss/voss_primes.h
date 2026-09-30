@@ -58,6 +58,17 @@ int voss_primes_ctx_chebyshev_bias(voss_primes_ctx* ctx,
                                    uint64_t* out_pi_4_3);
 
 // ============================================================
+// Large gaps (M4) — gaps >= 500
+// ============================================================
+// Get number of large gaps (>= 500) found. Requires STANDARD or FULL.
+int voss_primes_ctx_large_gaps_count(voss_primes_ctx* ctx, uint64_t* out_count);
+
+// Get the i-th large gap (sorted descending by gap size).
+// Position is the second prime of the gap; gap is the size.
+int voss_primes_ctx_large_gaps_get(voss_primes_ctx* ctx, uint64_t index,
+                                   uint64_t* out_position, uint32_t* out_gap);
+
+// ============================================================
 // Direct functions (M3) — no handle needed
 // ============================================================
 

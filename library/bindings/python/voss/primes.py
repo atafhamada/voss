@@ -79,6 +79,29 @@ def prime_count(N: int) -> int:
 # ============================================================
 # Context (M1) — handle with lazy cache
 # ============================================================
+class LargeGap:
+    """A single large prime gap (>= 500).
+
+    Attributes
+    ----------
+    position : int
+        The second prime of the gap (larger prime).
+    gap : int
+        Gap size (difference between consecutive primes).
+    """
+    def __init__(self, position: int, gap: int):
+        self.position = position
+        self.gap = gap
+
+    def __repr__(self):
+        return f"LargeGap(position={self.position:,}, gap={self.gap})"
+
+    def __eq__(self, other):
+        if not isinstance(other, LargeGap):
+            return NotImplemented
+        return self.position == other.position and self.gap == other.gap
+
+
 class ChebyshevBias:
     """Chebyshev bias result.
 
@@ -189,6 +212,7 @@ class Context:
         self._gap_cache = {}
         self._stats_cache = None
         self._cheb_cache = None
+        self._large_gaps_cache = None
 
     # --- Context manager ---
     def __enter__(self):
@@ -289,6 +313,43 @@ class Context:
         """
         return self._get_gap_count(
             _capi._lib.voss_primes_ctx_sexy, "sexy")
+
+    def large_gaps(self) -> list:
+        """Return list of large gaps (>= 500), sorted by gap size descending.
+
+        Requires profile "standard" or "full". Cached after first call.
+
+        Examples
+        --------
+        >>> import voss
+        >>> with voss.primes.Context(10**12) as ctx:
+        ...     gaps = ctx.large_gaps()
+        ...     print(len(gaps), gaps[0])
+        11 LargeGap(position=738,832,928,467, gap=540)
+        """
+        if self._ctx is None:
+            raise VossError("Context is closed")
+
+        if self._large_gaps_cache is not None:
+            return self._large_gaps_cache
+
+        count = ctypes.c_uint64(0)
+        rc = _capi._lib.voss_primes_ctx_large_gaps_count(
+            self._ctx, ctypes.byref(count))
+        _capi._check(rc, _ERRMAP)
+
+        result = []
+        for i in range(count.value):
+            pos = ctypes.c_uint64(0)
+            gap = ctypes.c_uint32(0)
+            rc = _capi._lib.voss_primes_ctx_large_gaps_get(
+                self._ctx, ctypes.c_uint64(i),
+                ctypes.byref(pos), ctypes.byref(gap))
+            _capi._check(rc, _ERRMAP)
+            result.append(LargeGap(position=pos.value, gap=gap.value))
+
+        self._large_gaps_cache = result
+        return result
 
     def chebyshev(self) -> ChebyshevBias:
         """Return Chebyshev bias: counts of primes == 1 and 3 (mod 4).

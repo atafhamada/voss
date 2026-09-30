@@ -58,8 +58,10 @@ __global__ void mod4_count_kernel(
     unsigned long long* __restrict__ cnt1,
     unsigned long long* __restrict__ cnt3);
 
-// === M2 constants ===
+// === M2/M4 constants ===
 #define VOSS_MAX_GAP 100000
+#define VOSS_LARGE_GAP_THRESHOLD 500
+#define VOSS_MAX_LARGE_GAPS 2000000
 
 // ============================================================
 // Handle struct (opaque)
@@ -80,6 +82,10 @@ struct voss_primes_ctx {
     uint64_t cached_class1 = 0;   // primes === 1 (mod 4), includes 5
     uint64_t cached_class3 = 0;   // primes === 3 (mod 4), includes 3
     bool has_chebyshev = false;
+
+    // Lazy cache: large gaps (>= VOSS_LARGE_GAP_THRESHOLD)
+    std::vector<LargeGap> cached_large_gaps;
+    bool has_large_gaps = false;
 };
 
 // ============================================================
@@ -191,6 +197,7 @@ struct FullResult {
     std::vector<int64_t> histogram;  // empty if compute_gaps == false
     uint64_t class1 = 0;             // Chebyshev: === 1 (mod 4)
     uint64_t class3 = 0;             // Chebyshev: === 3 (mod 4)
+    std::vector<LargeGap> large_gaps; // empty if compute_gaps == false
 };
 
 FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
@@ -262,7 +269,9 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
 
         // Extra buffers only needed if computing gaps
         DeviceBuffer gaps_buf(compute_gaps ? (size_t)VOSS_MAX_GAP * sizeof(int64_t) : sizeof(int64_t));
-        DeviceBuffer lg_buf(sizeof(LargeGap));
+        DeviceBuffer lg_buf(compute_gaps
+            ? (size_t)VOSS_MAX_LARGE_GAPS * sizeof(LargeGap)
+            : sizeof(LargeGap));
         DeviceBuffer lgcnt_buf(sizeof(unsigned int));
 
         // Mod-4 buffers (always needed if compute_gaps)
@@ -281,6 +290,7 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
         if (compute_gaps) {
             check_cuda(cudaMemset(gaps_d, 0, (size_t)VOSS_MAX_GAP * sizeof(int64_t)),
                        "cudaMemset(gaps)");
+            // lg_cnt_d is NOT reset per segment — accumulates large gaps globally
             check_cuda(cudaMemset(lg_cnt_d, 0, sizeof(unsigned int)),
                        "cudaMemset(lg_cnt)");
         }
@@ -447,7 +457,7 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
                 gaps_w30_seg_kernel<<<gaps_grid, 256>>>(
                     positions_d, n_pos, k_base,
                     gaps_d, large_gaps_d, lg_cnt_d,
-                    500, 1);  // threshold=500, max=1 (M2 ignores large gaps)
+                    VOSS_LARGE_GAP_THRESHOLD, VOSS_MAX_LARGE_GAPS);
                 check_cuda(cudaDeviceSynchronize(), "cudaDeviceSynchronize(gaps)");
 
                 // Read back and accumulate
@@ -487,6 +497,31 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
 
         result.class1 = class1_total;
         result.class3 = class3_total;
+
+        // Read accumulated large gaps from GPU
+        if (compute_gaps) {
+            unsigned int lg_count = 0;
+            check_cuda(cudaMemcpy(&lg_count, lg_cnt_d, sizeof(unsigned int),
+                                  cudaMemcpyDeviceToHost),
+                       "cudaMemcpy(lg_count)");
+
+            if (lg_count > (unsigned int)VOSS_MAX_LARGE_GAPS) {
+                lg_count = VOSS_MAX_LARGE_GAPS;
+            }
+
+            if (lg_count > 0) {
+                result.large_gaps.resize(lg_count);
+                check_cuda(cudaMemcpy(result.large_gaps.data(), large_gaps_d,
+                                      lg_count * sizeof(LargeGap),
+                                      cudaMemcpyDeviceToHost),
+                           "cudaMemcpy(large_gaps)");
+                // Sort by gap (descending)
+                std::sort(result.large_gaps.begin(), result.large_gaps.end(),
+                          [](const LargeGap& a, const LargeGap& b) {
+                              return a.gap > b.gap;
+                          });
+            }
+        }
 
         result.prime_count = total;
     }
@@ -557,6 +592,8 @@ static int ensure_full_computed(voss_primes_ctx* ctx) {
             ctx->cached_class1 = r.class1;
             ctx->cached_class3 = r.class3;
             ctx->has_chebyshev = true;
+            ctx->cached_large_gaps = std::move(r.large_gaps);
+            ctx->has_large_gaps = true;
         }
         return VOSS_OK;
     } catch (const std::exception& e) {
@@ -673,6 +710,50 @@ extern "C" int voss_primes_ctx_statistics(voss_primes_ctx* ctx,
     out->skewness   = (std_dev > 0.0) ? (m3 / (double)total) / (var * std_dev) : 0.0;
     out->kurtosis   = (var > 0.0) ? (m4 / (double)total) / (var * var) - 3.0 : 0.0;
     out->total_gaps = (uint64_t)total;
+    return VOSS_OK;
+}
+
+extern "C" int voss_primes_ctx_large_gaps_count(voss_primes_ctx* ctx,
+                                                uint64_t* out_count) {
+    if (ctx == nullptr || out_count == nullptr) {
+        voss_set_last_error("null pointer");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (ctx->profile == VOSS_PROFILE_MINIMAL) {
+        voss_set_last_error("Profile MINIMAL does not compute large gaps");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (!ctx->has_large_gaps) {
+        int rc = ensure_full_computed(ctx);
+        if (rc != VOSS_OK) return rc;
+    }
+    *out_count = (uint64_t)ctx->cached_large_gaps.size();
+    return VOSS_OK;
+}
+
+extern "C" int voss_primes_ctx_large_gaps_get(voss_primes_ctx* ctx,
+                                              uint64_t index,
+                                              uint64_t* out_position,
+                                              uint32_t* out_gap) {
+    if (ctx == nullptr || out_position == nullptr || out_gap == nullptr) {
+        voss_set_last_error("null pointer");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (ctx->profile == VOSS_PROFILE_MINIMAL) {
+        voss_set_last_error("Profile MINIMAL does not compute large gaps");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (!ctx->has_large_gaps) {
+        int rc = ensure_full_computed(ctx);
+        if (rc != VOSS_OK) return rc;
+    }
+    if (index >= ctx->cached_large_gaps.size()) {
+        voss_set_last_error("index out of range");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    const LargeGap& lg = ctx->cached_large_gaps[index];
+    *out_position = lg.position;
+    *out_gap = (uint32_t)lg.gap;
     return VOSS_OK;
 }
 
