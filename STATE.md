@@ -2,7 +2,7 @@
 
 **Last updated**: 2026-09-30 (end of long session)
 **Current milestone**: M5 complete (all primes section done)
-**Latest release**: v0.5.5 (published on PyPI as `voss`)
+**Latest release**: v0.5.6 (published on PyPI as `voss`)
 
 ---
 
@@ -30,7 +30,7 @@
 - **GitHub**: https://github.com/atafhamada/voss
 - **PyPI (main)**: https://pypi.org/project/voss/
 - **PyPI (deprecated)**: https://pypi.org/project/voss-prime-gaps/
-- **Latest version**: v0.5.5
+- **Latest version**: v0.5.6
 
 ---
 
@@ -61,7 +61,7 @@
 - CUDA sanitizer: 0 errors on full pipeline
 - Cross-check vs reference.py: all values match at 10^4..10^8
 - Performance: 24-100x faster on small N (v0.4.5)
-- PyPI: voss 0.5.5 live (binary wheel, Linux x86_64)
+- PyPI: voss 0.5.6 live (binary wheel, Linux x86_64)
 
 ### Known limitations
 - sophie_germain: N <= 5e7 (CPU sieve)
@@ -161,7 +161,7 @@ Paste this entire STATE.md content in the first message, then say:
 ## Session summary (this one)
 
 Duration: ~14 hours
-Versions released: v0.1.0 -> v0.5.5 (14 on GitHub, 2 on PyPI)
+Versions released: v0.1.0 -> v0.5.6 (15 on GitHub, 3 on PyPI)
 Tests: 82 pytest + 1 CTest + reference.py verification
 Bugs fixed: 2 (N<7 crash, apt mirror CI failure)
 Performance: 24-100x on small N
