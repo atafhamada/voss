@@ -33,6 +33,8 @@ set(CMAKE_CUDA_ARCHITECTURES "${VOSS_CUDA_ARCHS}"
 set(VOSS_SOURCES
     src/core/error.cpp
     src/core/alloc.cpp
+    src/core/miller_rabin.cpp
+    src/core/is_prime.cpp
     src/core/cuda_context.cpp
     src/core/memory.cpp
     src/primes/prime_count.cu

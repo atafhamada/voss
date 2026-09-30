@@ -4,6 +4,6 @@ from . import primes
 from .primes import Context, Statistics, ChebyshevBias, LargeGap
 from .exceptions import VossError
 
-__version__ = "0.4.5"
+__version__ = "0.5.1"
 
 __all__ = ["primes", "Context", "Statistics", "ChebyshevBias", "LargeGap", "VossError"]

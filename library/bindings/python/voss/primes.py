@@ -213,6 +213,7 @@ class Context:
         self._stats_cache = None
         self._cheb_cache = None
         self._large_gaps_cache = None
+        self._sophie_cache = None
 
     # --- Context manager ---
     def __enter__(self):
@@ -391,6 +392,31 @@ class Context:
 
         self._large_gaps_cache = result
         return result
+
+    def sophie_germain(self) -> int:
+        """Count Sophie Germain primes p <= N (where p and 2p+1 are both prime).
+
+        Requires profile "standard" or "full". Currently supports N <= 5e7.
+
+        Examples
+        --------
+        >>> import voss
+        >>> with voss.primes.Context(1000) as ctx:
+        ...     ctx.sophie_germain()
+        37
+        """
+        if self._ctx is None:
+            raise VossError("Context is closed")
+
+        if self._sophie_cache is not None:
+            return self._sophie_cache
+
+        out = ctypes.c_uint64(0)
+        rc = _capi._lib.voss_primes_ctx_sophie_germain(
+            self._ctx, ctypes.byref(out))
+        _capi._check(rc, _ERRMAP)
+        self._sophie_cache = out.value
+        return out.value
 
     def chebyshev(self) -> ChebyshevBias:
         """Return Chebyshev bias: counts of primes == 1 and 3 (mod 4).
@@ -605,3 +631,26 @@ def prev_prime(x: int) -> int:
     )
     _capi._check(rc, _ERRMAP)
     return out.value
+
+
+def is_prime(x: int) -> bool:
+    """Test if x is prime (deterministic Miller-Rabin).
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.is_prime(7)
+    True
+    >>> voss.primes.is_prime(100)
+    False
+    """
+    if not isinstance(x, int):
+        raise TypeError(f"x must be int, got {type(x).__name__}")
+    if x < 0:
+        return False
+
+    out = ctypes.c_int(0)
+    rc = _capi._lib.voss_primes_is_prime(
+        ctypes.c_uint64(x), ctypes.byref(out))
+    _capi._check(rc, _ERRMAP)
+    return out.value == 1

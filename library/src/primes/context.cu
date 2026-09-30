@@ -18,6 +18,7 @@
 #include "voss/voss.h"
 #include "voss/voss_primes.h"
 #include "core/internal.hpp"
+#include "core/miller_rabin.hpp"
 
 // === Public kernel forward declarations ===
 __global__ void sieve_w30_seg_kernel(
@@ -86,6 +87,10 @@ struct voss_primes_ctx {
     // Lazy cache: large gaps (>= VOSS_LARGE_GAP_THRESHOLD)
     std::vector<LargeGap> cached_large_gaps;
     bool has_large_gaps = false;
+
+    // Lazy cache: Sophie Germain count
+    uint64_t cached_sophie = 0;
+    bool has_sophie = false;
 };
 
 // ============================================================
@@ -723,6 +728,69 @@ extern "C" int voss_primes_ctx_statistics(voss_primes_ctx* ctx,
     out->kurtosis   = (var > 0.0) ? (m4 / (double)total) / (var * var) - 3.0 : 0.0;
     out->total_gaps = (uint64_t)total;
     return VOSS_OK;
+}
+
+extern "C" int voss_primes_ctx_sophie_germain(voss_primes_ctx* ctx,
+                                              uint64_t* out) {
+    if (ctx == nullptr) {
+        voss_set_last_error("ctx is null");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (out == nullptr) {
+        voss_set_last_error("out pointer is null");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (ctx->profile == VOSS_PROFILE_MINIMAL) {
+        voss_set_last_error("Profile MINIMAL does not support sophie_germain; "
+                            "use STANDARD or FULL");
+        return VOSS_ERR_INVALID_ARG;
+    }
+
+    if (ctx->has_sophie) {
+        *out = ctx->cached_sophie;
+        return VOSS_OK;
+    }
+
+    // Sophie Germain: count p where p and 2*p+1 are both prime.
+    // We have the list of all primes up to N from the histogram pipeline.
+    // Approach: iterate prime positions to reconstruct prime values, then
+    // apply Miller-Rabin on 2*p+1.
+    // For performance: use the histogram-cached prime list if we had it,
+    // but we don't store the full list. Simpler: recompute primes from
+    // the histogram is not possible directly.
+    //
+    // Pragmatic approach: for now, use a CPU sieve up to N and count.
+    // For N up to 10^7 this is fast enough. For larger N we'd need GPU
+    // reconstruction of primes (planned for later M5.x).
+    try {
+        if (ctx->N > 50000000ULL) {
+            voss_set_last_error("sophie_germain currently supports N <= 5e7");
+            return VOSS_ERR_OUT_OF_RANGE;
+        }
+        uint64_t N = ctx->N;
+        std::vector<bool> is_prime(N + 1, true);
+        if (N >= 0) is_prime[0] = false;
+        if (N >= 1) is_prime[1] = false;
+        for (uint64_t i = 2; i * i <= N; i++) {
+            if (is_prime[i]) {
+                for (uint64_t j = i * i; j <= N; j += i) is_prime[j] = false;
+            }
+        }
+        uint64_t count = 0;
+        for (uint64_t p = 2; p <= N; p++) {
+            if (!is_prime[p]) continue;
+            uint64_t q = 2 * p + 1;
+            if (q > N && voss_is_prime_mr(q)) count++;
+            else if (q <= N && is_prime[q]) count++;
+        }
+        ctx->cached_sophie = count;
+        ctx->has_sophie = true;
+        *out = count;
+        return VOSS_OK;
+    } catch (const std::exception& e) {
+        voss_set_last_error(e.what());
+        return VOSS_ERR_INTERNAL;
+    }
 }
 
 extern "C" int voss_primes_ctx_large_gaps_count(voss_primes_ctx* ctx,

@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.4.5"
+    assert voss.__version__ == "0.5.1"
 
 
 @skip_no_cuda
@@ -531,3 +531,64 @@ def test_small_n_is_fast():
         ctx.prime_count()
         t1 = time.time()
     assert (t1 - t0) < 0.1, f"N=10^6 took {t1-t0:.3f}s, expected <0.1s"
+
+
+# ============================================================
+# M5.1 — is_prime + Sophie Germain
+# ============================================================
+
+@skip_no_cuda
+def test_is_prime_basic():
+    import voss
+    assert voss.primes.is_prime(0) is False
+    assert voss.primes.is_prime(1) is False
+    assert voss.primes.is_prime(2) is True
+    assert voss.primes.is_prime(3) is True
+    assert voss.primes.is_prime(4) is False
+    assert voss.primes.is_prime(5) is True
+    assert voss.primes.is_prime(100) is False
+    assert voss.primes.is_prime(7919) is True
+    assert voss.primes.is_prime(1000000007) is True
+
+
+def test_is_prime_type_error():
+    import voss
+    with pytest.raises(TypeError):
+        voss.primes.is_prime("hello")
+
+
+@skip_no_cuda
+def test_sophie_germain_10():
+    import voss
+    with voss.primes.Context(10) as ctx:
+        assert ctx.sophie_germain() == 3   # 2, 3, 5
+
+
+@skip_no_cuda
+def test_sophie_germain_30():
+    import voss
+    with voss.primes.Context(30) as ctx:
+        assert ctx.sophie_germain() == 6
+
+
+@skip_no_cuda
+def test_sophie_germain_1000():
+    import voss
+    with voss.primes.Context(1000) as ctx:
+        assert ctx.sophie_germain() == 37
+
+
+@skip_no_cuda
+def test_sophie_germain_caching():
+    import voss
+    with voss.primes.Context(1000) as ctx:
+        s1 = ctx.sophie_germain()
+        s2 = ctx.sophie_germain()
+    assert s1 == s2
+
+
+def test_sophie_germain_rejected_on_minimal():
+    import voss
+    with voss.primes.Context(1000, profile="minimal") as ctx:
+        with pytest.raises(voss.VossError):
+            ctx.sophie_germain()

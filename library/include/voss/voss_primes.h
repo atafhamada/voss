@@ -34,6 +34,13 @@ int voss_primes_ctx_cousin(voss_primes_ctx* ctx, uint64_t* out);  // gap == 4
 int voss_primes_ctx_sexy(voss_primes_ctx* ctx, uint64_t* out);    // gap == 6
 
 // ============================================================
+// Sophie Germain primes (M5.1)
+// ============================================================
+// Count p <= N such that both p and 2*p+1 are prime.
+// Requires STANDARD or FULL profile.
+int voss_primes_ctx_sophie_germain(voss_primes_ctx* ctx, uint64_t* out);
+
+// ============================================================
 // Statistics (M4)
 // ============================================================
 typedef struct {
@@ -103,6 +110,13 @@ int voss_primes_next(uint64_t x, uint64_t* out_prime);
 
 // Largest prime < x
 int voss_primes_prev(uint64_t x, uint64_t* out_prime);
+
+// ============================================================
+// Primality (M5.1)
+// ============================================================
+// Test if x is prime (deterministic Miller-Rabin).
+// Result written to *out: 1 = prime, 0 = not prime.
+int voss_primes_is_prime(uint64_t x, int* out);
 
 #ifdef __cplusplus
 }

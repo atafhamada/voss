@@ -169,6 +169,18 @@ _lib.voss_primes_ctx_large_gaps_get.restype = ctypes.c_int
 _lib.voss_primes_ctx_export_csv.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.voss_primes_ctx_export_csv.restype = ctypes.c_int
 
+_lib.voss_primes_is_prime.argtypes = [
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_int),
+]
+_lib.voss_primes_is_prime.restype = ctypes.c_int
+
+_lib.voss_primes_ctx_sophie_germain.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_ctx_sophie_germain.restype = ctypes.c_int
+
 
 # === Error codes (mirror voss.h) ===
 VOSS_OK = 0
