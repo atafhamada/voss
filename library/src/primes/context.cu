@@ -183,10 +183,34 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
     FullResult result;
     result.prime_count = 0;
 
-    // Small N handled directly
-    if (N < 3) { result.prime_count = 1; goto done; }
-    if (N < 5) { result.prime_count = 2; goto done; }
-    if (N < 7) { result.prime_count = 3; goto done; }
+    // Small N handled directly. Histogram must be sized correctly even if empty
+    // to avoid out-of-bounds reads in get_gap_count.
+    auto init_empty_histogram = [&]() {
+        if (compute_gaps) {
+            result.histogram.assign(VOSS_MAX_GAP, 0);
+        }
+    };
+
+    if (N < 3) {
+        result.prime_count = 1;
+        init_empty_histogram();
+        return result;  // no gaps (only prime 2)
+    }
+    if (N < 5) {
+        result.prime_count = 2;
+        init_empty_histogram();
+        if (compute_gaps) result.histogram[1] = 1;  // gap 2 -> 3
+        return result;
+    }
+    if (N < 7) {
+        result.prime_count = 3;
+        init_empty_histogram();
+        if (compute_gaps) {
+            result.histogram[1] = 1;  // gap 2 -> 3
+            result.histogram[2] = 1;  // gap 3 -> 5
+        }
+        return result;
+    }
 
     {
         int device_count = 0;
