@@ -33,7 +33,7 @@ add_library(voss_core STATIC
     src/core/error.cpp
     src/core/cuda_context.cpp
     src/core/memory.cpp
-    src/primes/prime_count.cpp
+    src/primes/prime_count.cu
     src/primes/sieve.cu
     src/primes/extract.cu
 )
