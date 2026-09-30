@@ -1,8 +1,8 @@
-# VOSS — Project State
+# VOSS - Project State
 
-**Last updated**: 2026-09-30
-**Current milestone**: M4 complete, M5 not started
-**Last stable release**: v0.4.5 (M4 + perf fix)
+**Last updated**: 2026-09-30 (end of long session)
+**Current milestone**: M5 complete (all primes section done)
+**Latest release**: v0.5.5 (published on PyPI as `voss`)
 
 ---
 
@@ -25,94 +25,151 @@
 
 ---
 
-## Where we are
+## Repository and links
 
-- **M0** done, v0.1.0 - prime_count(N) working end-to-end
-- **M1** done, v0.2.0 - Context handle + lazy cache + 3 profiles
-- **M2** in progress - twins, cousin, sexy (gap histogram)
+- **GitHub**: https://github.com/atafhamada/voss
+- **PyPI (main)**: https://pypi.org/project/voss/
+- **PyPI (deprecated)**: https://pypi.org/project/voss-prime-gaps/
+- **Latest version**: v0.5.5
 
-## Next step (resume here)
+---
 
-M4 complete + M5 perf fix at v0.4.5. sanitizer passed (0 errors).
-Next: **M5.0 remaining** — reference implementation, docs, CI.
+## What was accomplished
 
-### M5.0 plan
+### M0 - M4 (early session)
+- M0 (v0.1.0): prime_count
+- M1 (v0.2.0): Context + profiles
+- M2 (v0.3.0, v0.3.1): twins/cousin/sexy
+- M3 (v0.4.0): in_range, nth, next_prime, prev_prime
+- M4 (v0.4.1-v0.4.5): statistics, chebyshev, large_gaps, CSV, dynamic SEG_NUM
 
-1. **CUDA memcheck**: run compute-sanitizer on test_primes
-2. **Benchmark suite**: extend `scripts/compare_with_primesieve.py`
-3. **Reference implementation** (Python, slow) for cross-checking
-4. **CI improvements**: test on T4 + A100 (self-hosted runner if possible)
-5. **Documentation**: expand README, add API reference
-6. **Tag v0.5.0** when all M5.0 criteria met
+### M5 (late session)
+- M5.0 (v0.5.0): reference.py, verify script, docs, CI fix
+- M5.1 (v0.5.1): is_prime + Sophie Germain
+- M5.2 (v0.5.2): factorize (Pollard rho + Miller-Rabin)
+- M5.3 (v0.5.3): Mersenne + Fermat primes
+- M5.4 (v0.5.4): Goldbach partitions
+- M5.5a (v0.5.4): voss.help() + CLI + getting-started.md
+- M5.5b (v0.5.5): PyPI binary wheel published as `voss`
 
-### What M4 delivered (recap)
+---
 
-- v0.4.0: 10^9 barrier broken (per-segment buffer)
-- v0.4.1: statistics (mean/std/skew/kurtosis)
-- v0.4.2: Chebyshev bias (pi_4_1, pi_4_3)
-- v0.4.3: large gaps (>= 500)
-- v0.4.4: CSV export
+## Current state
 
-pytest: 58 tests passing (excl. slow 10^12 test).
+### What works
+- 82 pytest tests pass (excludes slow 10^12 test)
+- CUDA sanitizer: 0 errors on full pipeline
+- Cross-check vs reference.py: all values match at 10^4..10^8
+- Performance: 24-100x faster on small N (v0.4.5)
+- PyPI: voss 0.5.5 live (binary wheel, Linux x86_64)
+
+### Known limitations
+- sophie_germain: N <= 5e7 (CPU sieve)
+- goldbach: n <= 10^8 (CPU)
+- is_mersenne_prime: p <= 63
+- is_fermat_prime: n <= 5
+- STANDARD/FULL profile: practical N limit 10^11 on Colab A100
+- MINIMAL profile: up to 10^14
+- Thread safety: one Context per thread
+- Windows/macOS: not supported (manylinux wheel only)
+
+---
+
+## Next steps (when ready)
+
+### M5.x follow-ups (optional)
+- Remove voss-prime-gaps project from PyPI
+- Update README to `pip install voss`
+- Remove publish/ build artifacts from git (add to .gitignore)
+
+### M6 (future)
+- General numbers section (voss-numbers): phi, tau, sigma, mu, GCD/LCM, Fibonacci, factorial
+- Math section (voss-math): linear algebra, optimization
+- Both deferred until v1.0.0
+
+### v1.0.0 (after dogfooding)
+- 6 months of use -> v1.0.0 release
+
+### Long-term
+- ML is NOT planned before v1.0.0 (per DESIGN.md 6.10)
+
+---
+
+## File structure
+voss/
+|-- DESIGN.md - design document
+|-- STATE.md - this file
+|-- README.md - root overview
+|-- src/ - v7-golden reference (frozen)
+|-- library/ - the actual library
+|  |-- include/voss/ - public headers
+|  |-- src/
+|  |  |-- core/ - error, alloc, miller_rabin, is_prime
+|  |  |-- primes/ - all prime functions
+|  |  +-- io/ - csv export
+|  |-- bindings/python/ - Python package (voss/)
+|  |-- tests/ - pytest + reference.py + verify script
+|  +-- docs/ - API + getting-started
+|-- paper/ - academic paper
+|-- scripts/ - benchmark.py + analysis
+|-- publish/ - PyPI publishing (temp)
++-- .github/workflows/ - CI
+
+---
+
+## Core code details
+
+### Key files
+- library/src/primes/sieve.cu    - sieve_w30_seg_kernel
+- library/src/primes/extract.cu  - extract_w30_seg_kernel
+- library/src/primes/gaps.cu     - gaps_w30_seg_kernel
+- library/src/primes/chebyshev.cu - mod4_count_kernel
+- library/src/primes/context.cu  - Context implementation
+- library/bindings/python/voss/primes.py - user API
+- library/bindings/python/voss/_capi.py  - ctypes loader
+
+### Key constants
+- SEG_NUM = min(N, 5e10)  (dynamic since v0.4.5)
+- MAX_GAP = 100000
+- VOSS_LARGE_GAP_THRESHOLD = 500
+- CUDA architectures: sm_75;sm_80
+
+---
+
+## Environment notes
+
+- Colab A100 has ~40 GB usable GPU memory (not 80 GB)
+- GitHub token in Colab Secrets as GITHUB_TOKEN
+- PyPI token created but not stored
+- Build: cd library && cmake -B build && cmake --build build -j4
+- Test: VOSS_LIBRARY_PATH=.../libvoss.so pytest library/tests/test_primes.py
+
+### Important gotcha
+- After rebuilding libvoss.so, Python keeps old .so cached.
+  Copy to a new filename (e.g., libvoss_v2.so) and update VOSS_LIBRARY_PATH.
+
+---
 
 ## How to resume in a new chat
 
-1. Open Colab, GPU runtime, run:
-```python
-from google.colab import userdata
-import subprocess, os
-token = userdata.get("GITHUB_TOKEN")
-os.chdir("/content")
-if not os.path.exists("voss"):
-    subprocess.run(["git", "clone",
-        f"https://x-access-token:{token}@github.com/atafhamada/voss.git"])
-os.chdir("/content/voss")
-subprocess.run(["git", "config", "user.email", "atafhamada@users.noreply.github.com"])
-subprocess.run(["git", "config", "user.name", "Ataf Hamada"])
-```
-2. Paste the content of this file (STATE.md) into the new chat.
-3. Say: "Resume from M2, next step is Cell C."
+Paste this entire STATE.md content in the first message, then say:
 
-## Key files
+    Resume VOSS project. Next task: [whatever you want]
 
-- DESIGN.md - full design (27+ decisions, English)
-- M0_PLAN.md - original 21-day plan (reference)
-- STATE.md - this file
-- library/README.md - build instructions
+---
 
-## Test evidence (as of v0.3.1)
+## Session summary (this one)
 
-Comprehensive testing has been performed at N = 2..10^9:
+Duration: ~14 hours
+Versions released: v0.1.0 -> v0.5.5 (14 on GitHub, 2 on PyPI)
+Tests: 82 pytest + 1 CTest + reference.py verification
+Bugs fixed: 2 (N<7 crash, apt mirror CI failure)
+Performance: 24-100x on small N
 
-- **Stage 1**: N = 101..1000 (900 consecutive values) — all match sympy
-- **Stage 2**: 1000 random samples in [2, 10^6] — all match sympy
-- **Stage 3**: 29 boundary values (powers, primes, segment boundaries) — all match
-- **Stage 4**: 500 sequential Contexts — 0 MB GPU memory leak
-- **Stage 5**: Reproduce v0.3.0 crash scenario — no crash
-- **Stage 6**: Cross-profile consistency (minimal/standard/full) — all agree
-
-Exhaustive N = 2..100 tested; all values match sympy reference.
-
-**M4 verification** (2026-09-30):
-- N = 10^10 (2 segments of 5e10): pi/twins/cousin/sexy match 1e10.txt, 0.54 s
-- N = 10^11 (3 segments): pi/twins/cousin/sexy match 1e11.txt, 5.33 s
-
-**Still not tested**: N >= 10^12, thread safety, CUDA memcheck.
-
-## Milestones remaining
-
-- M2: twins, cousin, sexy  [DONE, v0.3.1]
-- M3: range, nth, next/prev  [DONE, v0.4.0]
-- M4: statistics + CSV + large gaps  [DONE, v0.4.4]
-- M5.0: comprehensive tests + CI + docs  [NEXT]
-- M5.1: is_prime + Sophie Germain
-- M5.2: Factorization
-- M5.3: Mersenne + Fermat
-- M5.4: Goldbach
-
-## Critical technical notes
-
-- Python .so cache: after rebuilding libvoss.so, Python keeps the old one loaded.
-  Workaround: copy to a new filename (e.g., libvoss_m2.so), set VOSS_LIBRARY_PATH, reload modules.
-- Colab kernel restart: if stuck, Runtime -> Restart session (files in /content/ survive).
-- max_pos limit: current code uses max_pos = N/2. Works up to ~10^10. Fix planned for M4.
+Major milestones:
+- Complete primes section (11 function groups)
+- CUDA sanitizer clean
+- Cross-checked against independent implementation
+- Published on PyPI
+- CLI + help system
+- User-facing documentation
