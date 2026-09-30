@@ -113,7 +113,11 @@ Comprehensive testing has been performed at N = 2..10^9:
 
 Exhaustive N = 2..100 tested; all values match sympy reference.
 
-**Not yet tested**: N > 10^9 (multi-segment), thread safety, CUDA memcheck.
+**M4 verification** (2026-09-30):
+- N = 10^10 (2 segments of 5e10): pi/twins/cousin/sexy match 1e10.txt, 0.54 s
+- N = 10^11 (3 segments): pi/twins/cousin/sexy match 1e11.txt, 5.33 s
+
+**Still not tested**: N >= 10^12, thread safety, CUDA memcheck.
 
 ## Milestones remaining
 
