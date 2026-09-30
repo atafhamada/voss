@@ -71,10 +71,14 @@ set_target_properties(voss_shared PROPERTIES
 )
 
 # ============================================================
-# Test binary: test_prime_count
+# Tests
 # ============================================================
+enable_testing()
+
 add_executable(test_prime_count tests/test_prime_count.cpp)
 target_link_libraries(test_prime_count PRIVATE voss_core)
+
+add_test(NAME prime_count COMMAND test_prime_count)
 
 # ============================================================
 # Summary

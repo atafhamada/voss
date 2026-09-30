@@ -51,6 +51,8 @@ def prime_count(N: int) -> int:
     """
     if not isinstance(N, int):
         raise TypeError(f"N must be int, got {type(N).__name__}")
+    if N < 2:
+        raise VossInvalidNError(f"N must be >= 2, got {N}")
 
     out = ctypes.c_uint64(0)
     rc = _capi._lib.voss_primes_prime_count(

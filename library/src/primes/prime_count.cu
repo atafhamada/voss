@@ -306,6 +306,10 @@ extern "C" int voss_primes_prime_count(uint64_t N, uint64_t* out) {
         set_last_error("N must be >= 2");
         return VOSS_ERR_INVALID_N;
     }
+    if (N > 100000000000000ULL) {
+        set_last_error("N exceeds M0 maximum (10^14)");
+        return VOSS_ERR_OUT_OF_RANGE;
+    }
     if (out == nullptr) {
         set_last_error("out pointer is null");
         return VOSS_ERR_INVALID_ARG;
