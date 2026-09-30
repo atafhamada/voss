@@ -38,6 +38,7 @@ set(VOSS_SOURCES
     src/primes/context.cu
     src/primes/sieve.cu
     src/primes/extract.cu
+    src/primes/gaps.cu
 )
 
 # Static library

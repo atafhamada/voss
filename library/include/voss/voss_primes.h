@@ -26,7 +26,12 @@ typedef struct voss_primes_ctx voss_primes_ctx;
 
 int voss_primes_ctx_new(uint64_t N, int profile, voss_primes_ctx** out_ctx);
 void voss_primes_ctx_free(voss_primes_ctx* ctx);
+
+// === Queries ===
 int voss_primes_ctx_prime_count(voss_primes_ctx* ctx, uint64_t* out);
+int voss_primes_ctx_twins(voss_primes_ctx* ctx, uint64_t* out);   // gap == 2
+int voss_primes_ctx_cousin(voss_primes_ctx* ctx, uint64_t* out);  // gap == 4
+int voss_primes_ctx_sexy(voss_primes_ctx* ctx, uint64_t* out);    // gap == 6
 
 #ifdef __cplusplus
 }

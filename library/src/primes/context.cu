@@ -1,9 +1,8 @@
 // ============================================================
-// context.cu — voss_primes_ctx implementation (M1)
+// context.cu — voss_primes_ctx implementation (M1 + M2)
 //
-// The handle is a lazy cache. It stores N and profile, and
-// computes pi(N) on first request. M2+ will add gap/chebyshev
-// caches here.
+// M1: handle + lazy prime_count cache + profiles
+// M2: gap histogram + twins/cousin/sexy queries
 // ============================================================
 
 #include <cstdint>
@@ -13,12 +12,14 @@
 #include <stdexcept>
 #include <vector>
 #include <cuda_runtime.h>
+#include <thrust/sort.h>
+#include <thrust/device_ptr.h>
 
 #include "voss/voss.h"
 #include "voss/voss_primes.h"
 #include "core/internal.hpp"
 
-// === Kernels (defined in sieve.cu, extract.cu) ===
+// === Public kernel forward declarations ===
 __global__ void sieve_w30_seg_kernel(
     uint32_t* __restrict__ bits,
     uint32_t p,
@@ -33,20 +34,44 @@ __global__ void extract_w30_seg_kernel(
     uint64_t* __restrict__ positions,
     uint64_t* __restrict__ global_count);
 
+// === Gap kernel (defined in gaps.cu) ===
+struct LargeGap {
+    uint64_t position;
+    int32_t  gap;
+    int32_t  _pad;
+};
+
+__global__ void gaps_w30_seg_kernel(
+    const uint64_t* __restrict__ positions,
+    uint64_t n,
+    uint64_t k_base,
+    int64_t* __restrict__ global_hist,
+    LargeGap* __restrict__ large_gaps,
+    unsigned int* __restrict__ large_gap_count,
+    int large_gap_threshold,
+    int max_large_gaps);
+
+// === M2 constants ===
+#define VOSS_MAX_GAP 100000
+
 // ============================================================
-// Handle struct (opaque to users)
+// Handle struct (opaque)
 // ============================================================
 struct voss_primes_ctx {
     uint64_t N = 0;
     int profile = VOSS_PROFILE_STANDARD;
 
-    // Lazy cache for pi(N)
+    // Lazy cache: prime count
     uint64_t cached_prime_count = 0;
     bool     has_prime_count = false;
+
+    // Lazy cache: gap histogram (size VOSS_MAX_GAP)
+    std::vector<int64_t> cached_histogram;
+    bool has_histogram = false;
 };
 
 // ============================================================
-// Internal helpers (mirroring prime_count.cu)
+// Internal helpers
 // ============================================================
 namespace {
 
@@ -99,6 +124,9 @@ struct DeviceBuffer {
     DeviceBuffer& operator=(const DeviceBuffer&) = delete;
     uint32_t* as_u32() const { return static_cast<uint32_t*>(ptr); }
     uint64_t* as_u64() const { return static_cast<uint64_t*>(ptr); }
+    int64_t*  as_i64() const { return static_cast<int64_t*>(ptr);  }
+    LargeGap* as_lg()  const { return static_cast<LargeGap*>(ptr); }
+    unsigned int* as_u32i() const { return static_cast<unsigned int*>(ptr); }
 };
 
 struct CudaStream {
@@ -141,151 +169,257 @@ inline void check_cuda(cudaError_t err, const char* what) {
 }
 
 // ============================================================
-// Core: compute pi(N) — throws on error
+// Core: compute pi(N) and (optionally) gap histogram
+//
+// If compute_gaps is true, histogram is filled (size VOSS_MAX_GAP).
+// Otherwise histogram remains untouched.
 // ============================================================
-uint64_t compute_prime_count_impl(uint64_t N) {
-    if (N < 3)  return 1;
-    if (N < 5)  return 2;
-    if (N < 7)  return 3;
+struct FullResult {
+    uint64_t prime_count;
+    std::vector<int64_t> histogram;  // empty if compute_gaps == false
+};
 
-    int device_count = 0;
-    check_cuda(cudaGetDeviceCount(&device_count), "cudaGetDeviceCount");
-    if (device_count == 0) {
-        throw std::runtime_error("No CUDA device available");
-    }
+FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
+    FullResult result;
+    result.prime_count = 0;
 
-    const int64_t SEG_NUM  = 100000000020LL;
-    const int64_t SEG_K    = SEG_NUM / 30;
-    const int64_t SEG_BITS = SEG_K * 8;
-    const int64_t NUM_SEG  = (N + SEG_NUM - 1) / SEG_NUM;
+    // Small N handled directly
+    if (N < 3) { result.prime_count = 1; goto done; }
+    if (N < 5) { result.prime_count = 2; goto done; }
+    if (N < 7) { result.prime_count = 3; goto done; }
 
-    int limit = (int)std::sqrt((double)N) + 1;
-    BasePrimes base(limit);
-
-    int64_t max_pos = (int64_t)(N / 2) + 1000;
-
-    int64_t seg_words = (SEG_BITS + 31) / 32;
-    size_t bits_bytes = (size_t)seg_words * sizeof(uint32_t);
-    size_t pos_bytes  = (size_t)max_pos * sizeof(uint64_t);
-
-    DeviceBuffer bits_buf(bits_bytes);
-    DeviceBuffer pos_buf(pos_bytes);
-    DeviceBuffer cnt_buf(sizeof(uint64_t));
-    CudaStream stream;
-
-    uint32_t* bits_d = bits_buf.as_u32();
-    uint64_t* positions_d = pos_buf.as_u64();
-    uint64_t* count_d = cnt_buf.as_u64();
-
-    uint64_t total = 3;
-    const int BLOCK = 256;
-    std::vector<LaunchInfo> launches;
-    launches.reserve(base.count);
-
-    for (int64_t seg = 0; seg < NUM_SEG; seg++) {
-        int64_t seg_low_num  = seg * SEG_NUM + 1;
-        int64_t seg_high_num = (seg + 1) * SEG_NUM;
-        if (seg_high_num > (int64_t)N) seg_high_num = (int64_t)N;
-        int64_t k_base = seg * SEG_K;
-
-        int64_t seg_bits = SEG_BITS;
-        if (seg == NUM_SEG - 1) {
-            int64_t r_num = (int64_t)N - seg * SEG_NUM;
-            int64_t r_k = r_num / 30;
-            int64_t r_r = r_num % 30;
-            seg_bits = r_k * 8;
-            for (int i = 0; i < 8; i++)
-                if (W30[i] <= r_r) seg_bits++;
+    {
+        int device_count = 0;
+        check_cuda(cudaGetDeviceCount(&device_count), "cudaGetDeviceCount");
+        if (device_count == 0) {
+            throw std::runtime_error("No CUDA device available");
         }
-        int64_t current_seg_words = (seg_bits + 31) / 32;
 
-        launches.clear();
-        for (int i = 0; i < base.count; i++) {
-            uint32_t p = base.arr[i];
-            int64_t p_sq = (int64_t)p * p;
-            if (p_sq > seg_high_num) break;
+        const int64_t SEG_NUM  = 100000000020LL;
+        const int64_t SEG_K    = SEG_NUM / 30;
+        const int64_t SEG_BITS = SEG_K * 8;
+        const int64_t NUM_SEG  = (N + SEG_NUM - 1) / SEG_NUM;
 
-            int64_t inv30 = modinv(30 % p, (int64_t)p);
+        int limit = (int)std::sqrt((double)N) + 1;
+        BasePrimes base(limit);
 
-            LaunchInfo L;
-            L.p = p;
-            int64_t max_steps = 0;
-            for (int o = 0; o < 8; o++) {
-                int r = W30[o];
-                int64_t k0 = ((int64_t)((-r % (int)p + (int)p) % (int)p) * inv30) % (int64_t)p;
-                int64_t n = 30LL * k0 + r;
-                int64_t lower_bound = (p_sq > seg_low_num) ? p_sq : seg_low_num;
-                if (n < lower_bound) {
-                    int64_t step_val = 30LL * (int64_t)p;
-                    int64_t diff = lower_bound - n;
-                    int64_t add = ((diff + step_val - 1) / step_val) * step_val;
-                    n += add;
+        int64_t max_pos = (int64_t)(N / 2) + 1000;
+
+        int64_t seg_words = (SEG_BITS + 31) / 32;
+        size_t bits_bytes = (size_t)seg_words * sizeof(uint32_t);
+        size_t pos_bytes  = (size_t)max_pos * sizeof(uint64_t);
+
+        DeviceBuffer bits_buf(bits_bytes);
+        DeviceBuffer pos_buf(pos_bytes);
+        DeviceBuffer cnt_buf(sizeof(uint64_t));
+        CudaStream stream;
+
+        // Extra buffers only needed if computing gaps
+        DeviceBuffer gaps_buf(compute_gaps ? (size_t)VOSS_MAX_GAP * sizeof(int64_t) : sizeof(int64_t));
+        DeviceBuffer lg_buf(sizeof(LargeGap));
+        DeviceBuffer lgcnt_buf(sizeof(unsigned int));
+
+        uint32_t* bits_d = bits_buf.as_u32();
+        uint64_t* positions_d = pos_buf.as_u64();
+        uint64_t* count_d = cnt_buf.as_u64();
+        int64_t*  gaps_d = gaps_buf.as_i64();
+        LargeGap* large_gaps_d = lg_buf.as_lg();
+        unsigned int* lg_cnt_d = lgcnt_buf.as_u32i();
+
+        if (compute_gaps) {
+            check_cuda(cudaMemset(gaps_d, 0, (size_t)VOSS_MAX_GAP * sizeof(int64_t)),
+                       "cudaMemset(gaps)");
+            check_cuda(cudaMemset(lg_cnt_d, 0, sizeof(unsigned int)),
+                       "cudaMemset(lg_cnt)");
+        }
+
+        uint64_t total = 3;
+        uint64_t last_prime = 5;
+
+        // Allocate histogram accumulator if needed
+        if (compute_gaps) {
+            result.histogram.assign(VOSS_MAX_GAP, 0);
+        }
+
+        const int BLOCK = 256;
+        std::vector<LaunchInfo> launches;
+        launches.reserve(base.count);
+
+        // Temporary host buffer for per-segment gaps readback
+        std::vector<int64_t> gaps_seg_buf;
+        if (compute_gaps) gaps_seg_buf.resize(VOSS_MAX_GAP);
+
+        for (int64_t seg = 0; seg < NUM_SEG; seg++) {
+            int64_t seg_low_num  = seg * SEG_NUM + 1;
+            int64_t seg_high_num = (seg + 1) * SEG_NUM;
+            if (seg_high_num > (int64_t)N) seg_high_num = (int64_t)N;
+            int64_t k_base = seg * SEG_K;
+
+            int64_t seg_bits = SEG_BITS;
+            if (seg == NUM_SEG - 1) {
+                int64_t r_num = (int64_t)N - seg * SEG_NUM;
+                int64_t r_k = r_num / 30;
+                int64_t r_r = r_num % 30;
+                seg_bits = r_k * 8;
+                for (int i = 0; i < 8; i++)
+                    if (W30[i] <= r_r) seg_bits++;
+            }
+            int64_t current_seg_words = (seg_bits + 31) / 32;
+
+            launches.clear();
+            for (int i = 0; i < base.count; i++) {
+                uint32_t p = base.arr[i];
+                int64_t p_sq = (int64_t)p * p;
+                if (p_sq > seg_high_num) break;
+
+                int64_t inv30 = modinv(30 % p, (int64_t)p);
+
+                LaunchInfo L;
+                L.p = p;
+                int64_t max_steps = 0;
+                for (int o = 0; o < 8; o++) {
+                    int r = W30[o];
+                    int64_t k0 = ((int64_t)((-r % (int)p + (int)p) % (int)p) * inv30) % (int64_t)p;
+                    int64_t n = 30LL * k0 + r;
+                    int64_t lower_bound = (p_sq > seg_low_num) ? p_sq : seg_low_num;
+                    if (n < lower_bound) {
+                        int64_t step_val = 30LL * (int64_t)p;
+                        int64_t diff = lower_bound - n;
+                        int64_t add = ((diff + step_val - 1) / step_val) * step_val;
+                        n += add;
+                    }
+                    if (n > seg_high_num) { L.s[o] = -1; continue; }
+                    int64_t k_val = (n - r) / 30;
+                    int64_t local_idx = (k_val - k_base) * 8 + o;
+                    if (local_idx < 0 || local_idx >= seg_bits) { L.s[o] = -1; continue; }
+                    L.s[o] = local_idx;
+                    int64_t steps = (seg_bits - 1 - local_idx) / (8 * (int64_t)p) + 1;
+                    if (steps > max_steps) max_steps = steps;
                 }
-                if (n > seg_high_num) { L.s[o] = -1; continue; }
-                int64_t k_val = (n - r) / 30;
-                int64_t local_idx = (k_val - k_base) * 8 + o;
-                if (local_idx < 0 || local_idx >= seg_bits) { L.s[o] = -1; continue; }
-                L.s[o] = local_idx;
-                int64_t steps = (seg_bits - 1 - local_idx) / (8 * (int64_t)p) + 1;
-                if (steps > max_steps) max_steps = steps;
-            }
-            if (max_steps <= 0) continue;
-            int64_t total_threads = max_steps * 8;
-            L.grid_x = (int)((total_threads + BLOCK - 1) / BLOCK);
-            launches.push_back(L);
-        }
-
-        {
-            CudaGraph g;
-            check_cuda(cudaStreamBeginCapture(stream.s, cudaStreamCaptureModeGlobal),
-                       "cudaStreamBeginCapture");
-            for (auto& L : launches) {
-                sieve_w30_seg_kernel<<<L.grid_x, BLOCK, 0, stream.s>>>(
-                    bits_d, L.p, L.s[0], L.s[1], L.s[2], L.s[3],
-                    L.s[4], L.s[5], L.s[6], L.s[7], seg_bits);
-            }
-            check_cuda(cudaStreamEndCapture(stream.s, &g.graph),
-                       "cudaStreamEndCapture");
-            check_cuda(cudaGraphInstantiate(&g.exec, g.graph, NULL, NULL, 0),
-                       "cudaGraphInstantiate");
-
-            check_cuda(cudaMemset(bits_d, 0xFF, current_seg_words * sizeof(uint32_t)),
-                       "cudaMemset(bits)");
-            if (seg == 0) {
-                uint32_t fw = 0xFFFFFFFE;
-                check_cuda(cudaMemcpy(bits_d, &fw, 4, cudaMemcpyHostToDevice),
-                           "cudaMemcpy(first word)");
+                if (max_steps <= 0) continue;
+                int64_t total_threads = max_steps * 8;
+                L.grid_x = (int)((total_threads + BLOCK - 1) / BLOCK);
+                launches.push_back(L);
             }
 
-            check_cuda(cudaGraphLaunch(g.exec, stream.s), "cudaGraphLaunch");
-            check_cuda(cudaStreamSynchronize(stream.s), "cudaStreamSynchronize(sieve)");
+            {
+                CudaGraph g;
+                check_cuda(cudaStreamBeginCapture(stream.s, cudaStreamCaptureModeGlobal),
+                           "cudaStreamBeginCapture");
+                for (auto& L : launches) {
+                    sieve_w30_seg_kernel<<<L.grid_x, BLOCK, 0, stream.s>>>(
+                        bits_d, L.p, L.s[0], L.s[1], L.s[2], L.s[3],
+                        L.s[4], L.s[5], L.s[6], L.s[7], seg_bits);
+                }
+                check_cuda(cudaStreamEndCapture(stream.s, &g.graph),
+                           "cudaStreamEndCapture");
+                check_cuda(cudaGraphInstantiate(&g.exec, g.graph, NULL, NULL, 0),
+                           "cudaGraphInstantiate");
+
+                check_cuda(cudaMemset(bits_d, 0xFF, current_seg_words * sizeof(uint32_t)),
+                           "cudaMemset(bits)");
+                if (seg == 0) {
+                    uint32_t fw = 0xFFFFFFFE;
+                    check_cuda(cudaMemcpy(bits_d, &fw, 4, cudaMemcpyHostToDevice),
+                               "cudaMemcpy(first word)");
+                }
+
+                check_cuda(cudaGraphLaunch(g.exec, stream.s), "cudaGraphLaunch");
+                check_cuda(cudaStreamSynchronize(stream.s), "cudaStreamSynchronize(sieve)");
+            }
+
+            check_cuda(cudaMemset(count_d, 0, sizeof(uint64_t)), "cudaMemset(count)");
+
+            int ext_grid = (int)((current_seg_words + BLOCK - 1) / BLOCK);
+            extract_w30_seg_kernel<<<ext_grid, BLOCK>>>(
+                bits_d, current_seg_words, seg_bits, positions_d, count_d);
+            check_cuda(cudaDeviceSynchronize(), "cudaDeviceSynchronize(extract)");
+
+            uint64_t n_pos = 0;
+            check_cuda(cudaMemcpy(&n_pos, count_d, 8, cudaMemcpyDeviceToHost),
+                       "cudaMemcpy(count->host)");
+
+            if (n_pos > (uint64_t)max_pos) {
+                throw std::runtime_error("Position buffer overflow (increase max_pos)");
+            }
+
+            total += n_pos;
+
+            if (compute_gaps && n_pos > 0) {
+                // Sort positions
+                thrust::device_ptr<uint64_t> ptr(positions_d);
+                thrust::sort(ptr, ptr + n_pos);
+                check_cuda(cudaDeviceSynchronize(), "thrust::sort");
+
+                // First/last values in this segment
+                uint64_t first_local_idx = 0, last_local_idx = 0;
+                check_cuda(cudaMemcpy(&first_local_idx, positions_d, 8, cudaMemcpyDeviceToHost),
+                           "cudaMemcpy(first_idx)");
+                check_cuda(cudaMemcpy(&last_local_idx, positions_d + n_pos - 1, 8, cudaMemcpyDeviceToHost),
+                           "cudaMemcpy(last_idx)");
+
+                uint64_t first_val = 30ULL * (k_base + (first_local_idx >> 3)) + (uint64_t)W30[first_local_idx & 7];
+                uint64_t last_val  = 30ULL * (k_base + (last_local_idx >> 3))  + (uint64_t)W30[last_local_idx & 7];
+
+                // Boundary gap from previous segment
+                if (seg > 0 || last_prime > 0) {
+                    uint64_t d0 = first_val - last_prime;
+                    if (d0 > 0 && d0 < VOSS_MAX_GAP) {
+                        result.histogram[d0]++;
+                    }
+                }
+
+                // Reset gaps_d, run kernel
+                check_cuda(cudaMemset(gaps_d, 0, (size_t)VOSS_MAX_GAP * sizeof(int64_t)),
+                           "cudaMemset(gaps per seg)");
+
+                int gaps_grid = (int)((n_pos + 256 - 1) / 256);
+                gaps_w30_seg_kernel<<<gaps_grid, 256>>>(
+                    positions_d, n_pos, k_base,
+                    gaps_d, large_gaps_d, lg_cnt_d,
+                    500, 1);  // threshold=500, max=1 (M2 ignores large gaps)
+                check_cuda(cudaDeviceSynchronize(), "cudaDeviceSynchronize(gaps)");
+
+                // Read back and accumulate
+                check_cuda(cudaMemcpy(gaps_seg_buf.data(), gaps_d,
+                                      (size_t)VOSS_MAX_GAP * sizeof(int64_t),
+                                      cudaMemcpyDeviceToHost),
+                           "cudaMemcpy(gaps)");
+
+                for (int i = 1; i < VOSS_MAX_GAP; i++) {
+                    result.histogram[i] += gaps_seg_buf[i];
+                }
+
+                last_prime = last_val;
+            } else if (n_pos > 0) {
+                // Even without gaps, we still need last_prime updated for potential
+                // future gaps computation across segments — but for M2 simple case
+                // (single segment), this doesn't matter.
+                uint64_t last_local_idx = 0;
+                check_cuda(cudaMemcpy(&last_local_idx, positions_d + n_pos - 1, 8, cudaMemcpyDeviceToHost),
+                           "cudaMemcpy(last_idx)");
+                last_prime = 30ULL * (k_base + (last_local_idx >> 3)) + (uint64_t)W30[last_local_idx & 7];
+            }
         }
 
-        check_cuda(cudaMemset(count_d, 0, sizeof(uint64_t)), "cudaMemset(count)");
-
-        int ext_grid = (int)((current_seg_words + BLOCK - 1) / BLOCK);
-        extract_w30_seg_kernel<<<ext_grid, BLOCK>>>(
-            bits_d, current_seg_words, seg_bits, positions_d, count_d);
-        check_cuda(cudaDeviceSynchronize(), "cudaDeviceSynchronize(extract)");
-
-        uint64_t n_pos = 0;
-        check_cuda(cudaMemcpy(&n_pos, count_d, 8, cudaMemcpyDeviceToHost),
-                   "cudaMemcpy(count->host)");
-
-        if (n_pos > (uint64_t)max_pos) {
-            throw std::runtime_error("Position buffer overflow (increase max_pos)");
+        // Adjust: v7-golden adds +1 to histogram[1] and histogram[2]
+        // to account for the primes 2 and 3 (initial seeds)
+        if (compute_gaps) {
+            result.histogram[1] += 1;  // gap between 2 and 3
+            result.histogram[2] += 1;  // gap between 3 and 5
         }
 
-        total += n_pos;
+        result.prime_count = total;
     }
 
-    return total;
+done:
+    return result;
 }
 
 } // anonymous namespace
 
 // ============================================================
-// C API — handle lifecycle
+// Public C API — lifecycle
 // ============================================================
 extern "C" int voss_primes_ctx_new(uint64_t N, int profile,
                                    voss_primes_ctx** out_ctx) {
@@ -300,7 +434,7 @@ extern "C" int voss_primes_ctx_new(uint64_t N, int profile,
         return VOSS_ERR_INVALID_N;
     }
     if (N > 100000000000000ULL) {
-        voss_set_last_error("N exceeds M0/M1 maximum (10^14)");
+        voss_set_last_error("N exceeds maximum (10^14)");
         return VOSS_ERR_OUT_OF_RANGE;
     }
     if (profile != VOSS_PROFILE_MINIMAL &&
@@ -326,6 +460,35 @@ extern "C" void voss_primes_ctx_free(voss_primes_ctx* ctx) {
     delete ctx;
 }
 
+// ============================================================
+// Internal: ensure full computation done (once)
+// ============================================================
+static int ensure_full_computed(voss_primes_ctx* ctx) {
+    if (ctx->has_prime_count && ctx->has_histogram) {
+        return VOSS_OK;  // already computed
+    }
+    bool need_gaps = (ctx->profile != VOSS_PROFILE_MINIMAL);
+    try {
+        FullResult r = compute_full_impl(ctx->N, need_gaps);
+        ctx->cached_prime_count = r.prime_count;
+        ctx->has_prime_count = true;
+        if (need_gaps) {
+            ctx->cached_histogram = std::move(r.histogram);
+            ctx->has_histogram = true;
+        }
+        return VOSS_OK;
+    } catch (const std::exception& e) {
+        voss_set_last_error(e.what());
+        return VOSS_ERR_CUDA;
+    } catch (...) {
+        voss_set_last_error("Unknown error");
+        return VOSS_ERR_INTERNAL;
+    }
+}
+
+// ============================================================
+// Public C API — queries
+// ============================================================
 extern "C" int voss_primes_ctx_prime_count(voss_primes_ctx* ctx, uint64_t* out) {
     if (ctx == nullptr) {
         voss_set_last_error("ctx is null");
@@ -335,23 +498,44 @@ extern "C" int voss_primes_ctx_prime_count(voss_primes_ctx* ctx, uint64_t* out) 
         voss_set_last_error("out pointer is null");
         return VOSS_ERR_INVALID_ARG;
     }
-
-    if (ctx->has_prime_count) {
-        *out = ctx->cached_prime_count;
-        return VOSS_OK;
+    if (!ctx->has_prime_count) {
+        int rc = ensure_full_computed(ctx);
+        if (rc != VOSS_OK) return rc;
     }
+    *out = ctx->cached_prime_count;
+    return VOSS_OK;
+}
 
-    try {
-        uint64_t result = compute_prime_count_impl(ctx->N);
-        ctx->cached_prime_count = result;
-        ctx->has_prime_count = true;
-        *out = result;
-        return VOSS_OK;
-    } catch (const std::exception& e) {
-        voss_set_last_error(e.what());
-        return VOSS_ERR_CUDA;
-    } catch (...) {
-        voss_set_last_error("Unknown error");
-        return VOSS_ERR_INTERNAL;
+static int get_gap_count(voss_primes_ctx* ctx, uint64_t* out, int gap_size) {
+    if (ctx == nullptr) {
+        voss_set_last_error("ctx is null");
+        return VOSS_ERR_INVALID_ARG;
     }
+    if (out == nullptr) {
+        voss_set_last_error("out pointer is null");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (ctx->profile == VOSS_PROFILE_MINIMAL) {
+        voss_set_last_error("Profile MINIMAL does not compute gap histogram; "
+                            "use STANDARD or FULL");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (!ctx->has_histogram) {
+        int rc = ensure_full_computed(ctx);
+        if (rc != VOSS_OK) return rc;
+    }
+    *out = (uint64_t)ctx->cached_histogram[gap_size];
+    return VOSS_OK;
+}
+
+extern "C" int voss_primes_ctx_twins(voss_primes_ctx* ctx, uint64_t* out) {
+    return get_gap_count(ctx, out, 2);
+}
+
+extern "C" int voss_primes_ctx_cousin(voss_primes_ctx* ctx, uint64_t* out) {
+    return get_gap_count(ctx, out, 4);
+}
+
+extern "C" int voss_primes_ctx_sexy(voss_primes_ctx* ctx, uint64_t* out) {
+    return get_gap_count(ctx, out, 6);
 }
