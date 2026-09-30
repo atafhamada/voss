@@ -601,7 +601,7 @@ voss/
 ## 5.6 Package Name
 
 **[Decision]**:
-- PyPI: `voss` (reserved on PyPI as of this release) + `voss` (later if needed)
+- PyPI: `voss` (reserved on PyPI as of this release)
 - Python import: `voss`
 - Extras: `voss[numbers]`, `voss[math]` later
 
