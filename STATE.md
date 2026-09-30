@@ -29,7 +29,7 @@
 
 - **GitHub**: https://github.com/atafhamada/voss
 - **PyPI (main)**: https://pypi.org/project/voss/
-- **PyPI (deprecated)**: https://pypi.org/project/voss-prime-gaps/
+- **PyPI (deprecated)**: `voss-prime-gaps` — DELETED from PyPI (404)
 - **Latest version**: v0.5.6
 
 ---
@@ -82,7 +82,7 @@
 - [DONE] Update README to `pip install voss` (root + library/README.md)
 - [DONE] Remove publish/ build artifacts from git (added to .gitignore)
 - [DONE] DESIGN.md 5.12 note: publish/ NOT tracked in git
-- [PENDING] Remove voss-prime-gaps project from PyPI (manual, not via API)
+- [DONE] Remove voss-prime-gaps project from PyPI (deleted manually; now 404)
 
 ### M6 (future)
 - General numbers section (voss-numbers): phi, tau, sigma, mu, GCD/LCM, Fibonacci, factorial
