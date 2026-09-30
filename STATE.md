@@ -1,8 +1,8 @@
 # VOSS — Project State
 
 **Last updated**: 2026-09-30
-**Current milestone**: M3 complete, M4 not started
-**Last stable release**: v0.4.0 (M3)
+**Current milestone**: M4 complete, M5 not started
+**Last stable release**: v0.4.4 (M4)
 
 ---
 
@@ -33,47 +33,26 @@
 
 ## Next step (resume here)
 
-Run Cell C - build the project:
+M4 complete at v0.4.4. Next: **M5.0** — comprehensive tests + CI + docs.
 
-```python
-import subprocess, os
-os.chdir("/content/voss/library")
-subprocess.run(["rm", "-rf", "build"])
-subprocess.run(["cmake", "-B", "build"])
-r = subprocess.run(["cmake", "--build", "build", "-j4"],
-                   capture_output=True, text=True)
-print(r.stdout[-2000:])
-print("STDERR:", r.stderr[-1000:])
-print("Exit:", r.returncode)
-```
+### M5.0 plan
 
-Expected: build success with libvoss.so + libvoss_core.a.
+1. **CUDA memcheck**: run compute-sanitizer on test_primes
+2. **Benchmark suite**: extend `scripts/compare_with_primesieve.py`
+3. **Reference implementation** (Python, slow) for cross-checking
+4. **CI improvements**: test on T4 + A100 (self-hosted runner if possible)
+5. **Documentation**: expand README, add API reference
+6. **Tag v0.5.0** when all M5.0 criteria met
 
-## What comes after Cell C
+### What M4 delivered (recap)
 
-1. **Cell D**: update Python bindings (_capi.py + primes.py)
-   - Add _lib.voss_primes_ctx_twins/cousin/sexy signatures
-   - Add Context.twins(), Context.cousin(), Context.sexy() methods
-2. **Cell E**: test with libvoss_m2.so (rename to bypass Python .so cache)
-   - Expected: twins(10^9) = 3,424,506 / cousin = 3,424,679 / sexy = 6,089,791
-3. **Cell F**: pytest - add M2 tests, run full suite (expect ~29 tests)
-4. **Cell G**: commit + push + tag v0.3.0
+- v0.4.0: 10^9 barrier broken (per-segment buffer)
+- v0.4.1: statistics (mean/std/skew/kurtosis)
+- v0.4.2: Chebyshev bias (pi_4_1, pi_4_3)
+- v0.4.3: large gaps (>= 500)
+- v0.4.4: CSV export
 
-## M2 Cell A + B already done (not yet tested)
-
-Files modified/created:
-- library/src/primes/gaps.cu (NEW - copied from v7-golden)
-- library/src/primes/context.cu (REWRITTEN - added histogram + twins/cousin/sexy)
-- library/include/voss/voss_primes.h (added 3 function declarations)
-- library/CMakeLists.txt (added gaps.cu to sources)
-
-## Environment
-
-- Runtime: Google Colab, GPU A100, CUDA 12.8
-- Repo: /content/voss
-- GitHub token: stored in Colab Secrets as GITHUB_TOKEN
-- Build dir: /content/voss/library/build
-- Python bindings path: /content/voss/library/bindings/python
+pytest: 58 tests passing (excl. slow 10^12 test).
 
 ## How to resume in a new chat
 
@@ -123,8 +102,8 @@ Exhaustive N = 2..100 tested; all values match sympy reference.
 
 - M2: twins, cousin, sexy  [DONE, v0.3.1]
 - M3: range, nth, next/prev  [DONE, v0.4.0]
-- M4: statistics + CSV + large gaps  [NEXT]
-- M5.0: comprehensive tests + CI + docs -> v0.5.0
+- M4: statistics + CSV + large gaps  [DONE, v0.4.4]
+- M5.0: comprehensive tests + CI + docs  [NEXT]
 - M5.1: is_prime + Sophie Germain
 - M5.2: Factorization
 - M5.3: Mersenne + Fermat
