@@ -1,14 +1,14 @@
 // ============================================================
-// prime_count.cu — pi(N) computation
-//   Public C API: voss_primes_prime_count
-//   Kernels declared in sieve.cu / extract.cu
-//   Orchestration derived from v7-golden main() (gaps/chebyshev/CSV removed)
+// context.cu — voss_primes_ctx implementation (M1)
+//
+// The handle is a lazy cache. It stores N and profile, and
+// computes pi(N) on first request. M2+ will add gap/chebyshev
+// caches here.
 // ============================================================
 
 #include <cstdint>
 #include <cstdlib>
 #include <cmath>
-#include <cstring>
 #include <string>
 #include <stdexcept>
 #include <vector>
@@ -33,20 +33,26 @@ __global__ void extract_w30_seg_kernel(
     uint64_t* __restrict__ positions,
     uint64_t* __restrict__ global_count);
 
-// === Wheel-30 constants ===
-static const int W30[8] = {1, 7, 11, 13, 17, 19, 23, 29};
+// ============================================================
+// Handle struct (opaque to users)
+// ============================================================
+struct voss_primes_ctx {
+    uint64_t N = 0;
+    int profile = VOSS_PROFILE_STANDARD;
 
-// === Launch parameters for one base prime in one segment ===
-struct LaunchInfo {
-    uint32_t p;
-    int64_t s[8];
-    int grid_x;
+    // Lazy cache for pi(N)
+    uint64_t cached_prime_count = 0;
+    bool     has_prime_count = false;
 };
 
 // ============================================================
-// Helpers (copied verbatim from v7-golden)
+// Internal helpers (mirroring prime_count.cu)
 // ============================================================
-static void generate_base_primes(int limit, uint32_t** out, int* count) {
+namespace {
+
+const int W30[8] = {1, 7, 11, 13, 17, 19, 23, 29};
+
+void generate_base_primes(int limit, uint32_t** out, int* count) {
     bool* sieve = (bool*)malloc(limit + 1);
     for (int i = 0; i <= limit; i++) sieve[i] = true;
     sieve[0] = sieve[1] = false;
@@ -62,7 +68,7 @@ static void generate_base_primes(int limit, uint32_t** out, int* count) {
     *out = arr; *count = cnt;
 }
 
-static int64_t modinv(int64_t a, int64_t m) {
+int64_t modinv(int64_t a, int64_t m) {
     int64_t t = 0, newt = 1, r = m, newr = a % m;
     while (newr != 0) {
         int64_t q = r / newr;
@@ -73,10 +79,11 @@ static int64_t modinv(int64_t a, int64_t m) {
     return t;
 }
 
-// ============================================================
-// RAII wrappers for CUDA resources
-// ============================================================
-namespace {
+struct LaunchInfo {
+    uint32_t p;
+    int64_t s[8];
+    int grid_x;
+};
 
 struct DeviceBuffer {
     void* ptr = nullptr;
@@ -133,44 +140,34 @@ inline void check_cuda(cudaError_t err, const char* what) {
     }
 }
 
-} // anonymous namespace
-
 // ============================================================
-// Internal: compute pi(N) — throws std::exception on error
+// Core: compute pi(N) — throws on error
 // ============================================================
-static uint64_t compute_prime_count(uint64_t N) {
-    // Small N handled directly
-    if (N < 3)  return 1;  // N=2 -> 1
-    if (N < 5)  return 2;  // N=3,4 -> 2
-    if (N < 7)  return 3;  // N=5,6 -> 3
+uint64_t compute_prime_count_impl(uint64_t N) {
+    if (N < 3)  return 1;
+    if (N < 5)  return 2;
+    if (N < 7)  return 3;
 
-    // Check CUDA availability early
     int device_count = 0;
     check_cuda(cudaGetDeviceCount(&device_count), "cudaGetDeviceCount");
     if (device_count == 0) {
         throw std::runtime_error("No CUDA device available");
     }
 
-    // === Segment parameters (same as v7-golden) ===
-    const int64_t SEG_NUM = 100000000020LL;
-    const int64_t SEG_K   = SEG_NUM / 30;
+    const int64_t SEG_NUM  = 100000000020LL;
+    const int64_t SEG_K    = SEG_NUM / 30;
     const int64_t SEG_BITS = SEG_K * 8;
-    const int64_t NUM_SEG = (N + SEG_NUM - 1) / SEG_NUM;
+    const int64_t NUM_SEG  = (N + SEG_NUM - 1) / SEG_NUM;
 
-    // === Base primes up to sqrt(N) ===
     int limit = (int)std::sqrt((double)N) + 1;
     BasePrimes base(limit);
 
-    // === Buffer sizing ===
-    // M0 simplification: buffer sized to hold all primes <= N in one segment.
-    // For N=10^9, this is ~50M uint64 = ~400 MB.
     int64_t max_pos = (int64_t)(N / 2) + 1000;
 
     int64_t seg_words = (SEG_BITS + 31) / 32;
     size_t bits_bytes = (size_t)seg_words * sizeof(uint32_t);
     size_t pos_bytes  = (size_t)max_pos * sizeof(uint64_t);
 
-    // === Allocate GPU resources ===
     DeviceBuffer bits_buf(bits_bytes);
     DeviceBuffer pos_buf(pos_bytes);
     DeviceBuffer cnt_buf(sizeof(uint64_t));
@@ -180,9 +177,7 @@ static uint64_t compute_prime_count(uint64_t N) {
     uint64_t* positions_d = pos_buf.as_u64();
     uint64_t* count_d = cnt_buf.as_u64();
 
-    // === Initial count: 2, 3, 5 ===
     uint64_t total = 3;
-
     const int BLOCK = 256;
     std::vector<LaunchInfo> launches;
     launches.reserve(base.count);
@@ -204,7 +199,6 @@ static uint64_t compute_prime_count(uint64_t N) {
         }
         int64_t current_seg_words = (seg_bits + 31) / 32;
 
-        // === Compute launch info per base prime ===
         launches.clear();
         for (int i = 0; i < base.count; i++) {
             uint32_t p = base.arr[i];
@@ -241,7 +235,6 @@ static uint64_t compute_prime_count(uint64_t N) {
             launches.push_back(L);
         }
 
-        // === Build CUDA graph (bundles all sieve launches for this segment) ===
         {
             CudaGraph g;
             check_cuda(cudaStreamBeginCapture(stream.s, cudaStreamCaptureModeGlobal),
@@ -256,7 +249,6 @@ static uint64_t compute_prime_count(uint64_t N) {
             check_cuda(cudaGraphInstantiate(&g.exec, g.graph, NULL, NULL, 0),
                        "cudaGraphInstantiate");
 
-            // Init bits: all 1s (candidate primes), then clear bit 0 of word 0 (number 1)
             check_cuda(cudaMemset(bits_d, 0xFF, current_seg_words * sizeof(uint32_t)),
                        "cudaMemset(bits)");
             if (seg == 0) {
@@ -269,7 +261,6 @@ static uint64_t compute_prime_count(uint64_t N) {
             check_cuda(cudaStreamSynchronize(stream.s), "cudaStreamSynchronize(sieve)");
         }
 
-        // === Extract positions ===
         check_cuda(cudaMemset(count_d, 0, sizeof(uint64_t)), "cudaMemset(count)");
 
         int ext_grid = (int)((current_seg_words + BLOCK - 1) / BLOCK);
@@ -282,8 +273,7 @@ static uint64_t compute_prime_count(uint64_t N) {
                    "cudaMemcpy(count->host)");
 
         if (n_pos > (uint64_t)max_pos) {
-            throw std::runtime_error(
-                "Position buffer overflow (increase max_pos)");
+            throw std::runtime_error("Position buffer overflow (increase max_pos)");
         }
 
         total += n_pos;
@@ -292,24 +282,69 @@ static uint64_t compute_prime_count(uint64_t N) {
     return total;
 }
 
+} // anonymous namespace
+
 // ============================================================
-// Public C API
+// C API — handle lifecycle
 // ============================================================
-extern "C" int voss_primes_prime_count(uint64_t N, uint64_t* out) {
+extern "C" int voss_primes_ctx_new(uint64_t N, int profile,
+                                   voss_primes_ctx** out_ctx) {
+    if (out_ctx == nullptr) {
+        voss_set_last_error("out_ctx pointer is null");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    *out_ctx = nullptr;
+
     if (N < 2) {
         voss_set_last_error("N must be >= 2");
         return VOSS_ERR_INVALID_N;
     }
     if (N > 100000000000000ULL) {
-        voss_set_last_error("N exceeds M0 maximum (10^14)");
+        voss_set_last_error("N exceeds M0/M1 maximum (10^14)");
         return VOSS_ERR_OUT_OF_RANGE;
+    }
+    if (profile != VOSS_PROFILE_MINIMAL &&
+        profile != VOSS_PROFILE_STANDARD &&
+        profile != VOSS_PROFILE_FULL) {
+        voss_set_last_error("invalid profile value");
+        return VOSS_ERR_INVALID_ARG;
+    }
+
+    try {
+        auto* ctx = new voss_primes_ctx();
+        ctx->N = N;
+        ctx->profile = profile;
+        *out_ctx = ctx;
+        return VOSS_OK;
+    } catch (const std::exception& e) {
+        voss_set_last_error(std::string("ctx_new failed: ") + e.what());
+        return VOSS_ERR_INTERNAL;
+    }
+}
+
+extern "C" void voss_primes_ctx_free(voss_primes_ctx* ctx) {
+    delete ctx;
+}
+
+extern "C" int voss_primes_ctx_prime_count(voss_primes_ctx* ctx, uint64_t* out) {
+    if (ctx == nullptr) {
+        voss_set_last_error("ctx is null");
+        return VOSS_ERR_INVALID_ARG;
     }
     if (out == nullptr) {
         voss_set_last_error("out pointer is null");
         return VOSS_ERR_INVALID_ARG;
     }
+
+    if (ctx->has_prime_count) {
+        *out = ctx->cached_prime_count;
+        return VOSS_OK;
+    }
+
     try {
-        uint64_t result = compute_prime_count(N);
+        uint64_t result = compute_prime_count_impl(ctx->N);
+        ctx->cached_prime_count = result;
+        ctx->has_prime_count = true;
         *out = result;
         return VOSS_OK;
     } catch (const std::exception& e) {
@@ -320,4 +355,3 @@ extern "C" int voss_primes_prime_count(uint64_t N, uint64_t* out) {
         return VOSS_ERR_INTERNAL;
     }
 }
-

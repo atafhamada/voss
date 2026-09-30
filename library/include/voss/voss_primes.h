@@ -8,18 +8,25 @@ extern "C" {
 #endif
 
 // ============================================================
-// voss_primes_prime_count
-//   Compute pi(N): number of primes <= N.
-//
-// Parameters:
-//   N    - upper bound (must be >= 2)
-//   out  - output pointer, receives pi(N)
-//
-// Returns:
-//   VOSS_OK on success, or a VOSS_ERR_* code on failure.
-//   On failure, out is not modified.
+// Direct function (M0)
 // ============================================================
 int voss_primes_prime_count(uint64_t N, uint64_t* out);
+
+// ============================================================
+// Profiles (M1)
+// ============================================================
+#define VOSS_PROFILE_MINIMAL   0
+#define VOSS_PROFILE_STANDARD  1
+#define VOSS_PROFILE_FULL      2
+
+// ============================================================
+// Handle (M1)
+// ============================================================
+typedef struct voss_primes_ctx voss_primes_ctx;
+
+int voss_primes_ctx_new(uint64_t N, int profile, voss_primes_ctx** out_ctx);
+void voss_primes_ctx_free(voss_primes_ctx* ctx);
+int voss_primes_ctx_prime_count(voss_primes_ctx* ctx, uint64_t* out);
 
 #ifdef __cplusplus
 }

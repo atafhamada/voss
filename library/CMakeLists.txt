@@ -35,6 +35,7 @@ set(VOSS_SOURCES
     src/core/cuda_context.cpp
     src/core/memory.cpp
     src/primes/prime_count.cu
+    src/primes/context.cu
     src/primes/sieve.cu
     src/primes/extract.cu
 )

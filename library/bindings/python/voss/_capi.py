@@ -60,6 +60,23 @@ _lib.voss_strerror.restype = ctypes.c_char_p
 _lib.voss_get_last_error.argtypes = []
 _lib.voss_get_last_error.restype = ctypes.c_char_p
 
+# === Handle (M1) ===
+_lib.voss_primes_ctx_new.argtypes = [
+    ctypes.c_uint64,
+    ctypes.c_int,
+    ctypes.POINTER(ctypes.c_void_p),
+]
+_lib.voss_primes_ctx_new.restype = ctypes.c_int
+
+_lib.voss_primes_ctx_free.argtypes = [ctypes.c_void_p]
+_lib.voss_primes_ctx_free.restype = None
+
+_lib.voss_primes_ctx_prime_count.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_ctx_prime_count.restype = ctypes.c_int
+
 
 # === Error codes (mirror voss.h) ===
 VOSS_OK = 0
@@ -70,6 +87,11 @@ VOSS_ERR_OUT_OF_MEMORY = 4
 VOSS_ERR_CUDA = 5
 VOSS_ERR_INVALID_ARG = 6
 VOSS_ERR_INTERNAL = 7
+
+# === Profiles (M1) ===
+VOSS_PROFILE_MINIMAL = 0
+VOSS_PROFILE_STANDARD = 1
+VOSS_PROFILE_FULL = 2
 
 
 def _check(rc: int, errcode_map: dict):

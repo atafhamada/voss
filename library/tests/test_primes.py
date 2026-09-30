@@ -83,3 +83,72 @@ def test_consistency():
     p8 = voss.primes.prime_count(10**8)
     p9 = voss.primes.prime_count(10**9)
     assert p8 < p9
+
+
+# ============================================================
+# M1 tests — Context (handle)
+# ============================================================
+
+@skip_no_cuda
+def test_context_basic():
+    import voss
+    with voss.primes.Context(10**9) as ctx:
+        assert ctx.prime_count() == 50_847_534
+
+
+@skip_no_cuda
+def test_context_caching():
+    import voss
+    with voss.primes.Context(10**8) as ctx:
+        p1 = ctx.prime_count()
+        p2 = ctx.prime_count()
+        assert p1 == p2 == 5_761_455
+
+
+@skip_no_cuda
+def test_context_properties():
+    import voss
+    with voss.primes.Context(10**6, profile="full") as ctx:
+        assert ctx.N == 10**6
+        assert ctx.profile == "full"
+
+
+@skip_no_cuda
+@pytest.mark.parametrize("profile", ["minimal", "standard", "full"])
+def test_context_profiles(profile):
+    import voss
+    with voss.primes.Context(10**6, profile=profile) as ctx:
+        assert ctx.prime_count() == 78_498
+
+
+def test_context_invalid_n():
+    import voss
+    with pytest.raises(voss.VossError):
+        voss.primes.Context(0)
+    with pytest.raises(voss.VossError):
+        voss.primes.Context(1)
+    with pytest.raises(voss.VossError):
+        voss.primes.Context(-10)
+
+
+def test_context_invalid_profile():
+    import voss
+    with pytest.raises(ValueError):
+        voss.primes.Context(10**6, profile="invalid")
+
+
+def test_context_closed_raises():
+    import voss
+    ctx = voss.primes.Context(10**6)
+    ctx.close()
+    with pytest.raises(voss.VossError):
+        ctx.prime_count()
+
+
+@skip_no_cuda
+def test_context_multiple_instances():
+    import voss
+    with voss.primes.Context(10**6) as c1, \
+         voss.primes.Context(10**7) as c2:
+        assert c1.prime_count() == 78_498
+        assert c2.prime_count() == 664_579
