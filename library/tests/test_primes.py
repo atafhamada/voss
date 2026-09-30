@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.4.3"
+    assert voss.__version__ == "0.4.4"
 
 
 @skip_no_cuda
@@ -480,3 +480,38 @@ def test_large_gap_repr():
     g = voss.primes.LargeGap(position=100, gap=500)
     assert "position" in repr(g)
     assert "gap" in repr(g)
+
+
+# ============================================================
+# M4 part 5 — CSV export
+# ============================================================
+
+@skip_no_cuda
+def test_export_csv_basic(tmp_path):
+    import voss
+    prefix = str(tmp_path / "voss_test")
+    with voss.primes.Context(10**6) as ctx:
+        files = ctx.export_csv(prefix)
+    assert len(files) == 3
+    for f in files:
+        assert Path(f).exists()
+        assert Path(f).stat().st_size > 0
+
+
+@skip_no_cuda
+def test_export_csv_content(tmp_path):
+    import voss
+    prefix = str(tmp_path / "voss_test")
+    with voss.primes.Context(10**6) as ctx:
+        ctx.export_csv(prefix)
+    # Check stats file
+    stats_file = Path(prefix + "_stats.csv")
+    lines = stats_file.read_text().strip().split("\n")
+    assert lines[0] == "metric,value"
+    # total_gaps should be 78497
+    for line in lines:
+        if line.startswith("total_gaps,"):
+            assert line == "total_gaps,78497"
+            break
+    else:
+        raise AssertionError("total_gaps line not found")

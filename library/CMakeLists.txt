@@ -41,6 +41,7 @@ set(VOSS_SOURCES
     src/primes/extract.cu
     src/primes/gaps.cu
     src/primes/chebyshev.cu
+    src/io/csv.cpp
     src/primes/range.cu
     src/primes/nth.cu
     src/primes/next_prev.cu

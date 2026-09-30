@@ -69,6 +69,19 @@ int voss_primes_ctx_large_gaps_get(voss_primes_ctx* ctx, uint64_t index,
                                    uint64_t* out_position, uint32_t* out_gap);
 
 // ============================================================
+// CSV export (M4 part 5)
+// ============================================================
+// Export the computed results to CSV files with the given prefix.
+// Writes:
+//   <prefix>_chebyshev.csv   (pi_4_1, pi_4_3, difference)
+//   <prefix>_large_gaps.csv  (position, gap)
+//   <prefix>_stats.csv       (mean_gap, std_dev, ...)
+//
+// Returns VOSS_ERR_INVALID_ARG if profile is MINIMAL.
+// Returns VOSS_ERR_INTERNAL if file I/O fails.
+int voss_primes_ctx_export_csv(voss_primes_ctx* ctx, const char* prefix);
+
+// ============================================================
 // Direct functions (M3) — no handle needed
 // ============================================================
 

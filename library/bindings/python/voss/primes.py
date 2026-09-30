@@ -314,6 +314,47 @@ class Context:
         return self._get_gap_count(
             _capi._lib.voss_primes_ctx_sexy, "sexy")
 
+    def export_csv(self, prefix: str) -> list:
+        """Export results to CSV files with the given prefix.
+
+        Creates:
+          <prefix>_chebyshev.csv   (pi_4_1, pi_4_3, difference)
+          <prefix>_large_gaps.csv  (position, gap)
+          <prefix>_stats.csv       (mean_gap, std_dev, skewness, kurtosis, total_gaps)
+
+        Requires profile "standard" or "full".
+
+        Returns
+        -------
+        list of str
+            Paths to the files created.
+
+        Examples
+        --------
+        >>> import voss
+        >>> with voss.primes.Context(10**9) as ctx:
+        ...     files = ctx.export_csv("/tmp/voss")
+        ...     for f in files:
+        ...         print(f)
+        /tmp/voss_chebyshev.csv
+        /tmp/voss_large_gaps.csv
+        /tmp/voss_stats.csv
+        """
+        if self._ctx is None:
+            raise VossError("Context is closed")
+        if not isinstance(prefix, str):
+            raise TypeError("prefix must be str")
+
+        rc = _capi._lib.voss_primes_ctx_export_csv(
+            self._ctx, prefix.encode('utf-8'))
+        _capi._check(rc, _ERRMAP)
+
+        return [
+            prefix + "_chebyshev.csv",
+            prefix + "_large_gaps.csv",
+            prefix + "_stats.csv",
+        ]
+
     def large_gaps(self) -> list:
         """Return list of large gaps (>= 500), sorted by gap size descending.
 
