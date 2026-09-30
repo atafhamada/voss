@@ -193,6 +193,16 @@ _lib.voss_primes_is_fermat_prime.argtypes = [
 ]
 _lib.voss_primes_is_fermat_prime.restype = ctypes.c_int
 
+_lib.voss_primes_goldbach_count.argtypes = [ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64)]
+_lib.voss_primes_goldbach_count.restype = ctypes.c_int
+
+_lib.voss_primes_goldbach_partitions.argtypes = [
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.POINTER(ctypes.c_uint64)),
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_goldbach_partitions.restype = ctypes.c_int
+
 _lib.voss_primes_factorize.argtypes = [
     ctypes.c_uint64,
     ctypes.POINTER(ctypes.POINTER(ctypes.c_uint64)),

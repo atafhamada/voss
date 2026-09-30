@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.5.3"
+    assert voss.__version__ == "0.5.4"
 
 
 @skip_no_cuda
@@ -682,3 +682,55 @@ def test_fermat_invalid():
         voss.primes.is_fermat_prime(6)
     with pytest.raises(TypeError):
         voss.primes.is_fermat_prime("hello")
+
+
+# ============================================================
+# M5.4 — Goldbach
+# ============================================================
+
+@skip_no_cuda
+def test_goldbach_count_small():
+    import voss
+    assert voss.primes.goldbach_count(10) == 2
+    assert voss.primes.goldbach_count(100) == 6
+    assert voss.primes.goldbach_count(1000) == 28
+
+
+@skip_no_cuda
+def test_goldbach_count_medium():
+    import voss
+    assert voss.primes.goldbach_count(10000) == 127
+    assert voss.primes.goldbach_count(100000) == 810
+
+
+@skip_no_cuda
+def test_goldbach_partitions_10():
+    import voss
+    parts = voss.primes.goldbach_partitions(10)
+    assert set(parts) == {(3, 7), (5, 5)}
+
+
+@skip_no_cuda
+def test_goldbach_partitions_20():
+    import voss
+    parts = voss.primes.goldbach_partitions(20)
+    # 3+17=20, 7+13=20
+    assert set(parts) == {(3, 17), (7, 13)}
+
+
+def test_goldbach_invalid():
+    import voss
+    with pytest.raises(voss.VossError):
+        voss.primes.goldbach_count(3)   # odd
+    with pytest.raises(voss.VossError):
+        voss.primes.goldbach_count(2)   # < 4
+    with pytest.raises(TypeError):
+        voss.primes.goldbach_count("hello")
+
+
+@skip_no_cuda
+def test_goldbach_consistency():
+    """goldbach_count(n) == len(goldbach_partitions(n))."""
+    import voss
+    for n in [10, 100, 1000]:
+        assert voss.primes.goldbach_count(n) == len(voss.primes.goldbach_partitions(n))

@@ -743,3 +743,59 @@ def is_fermat_prime(n: int) -> bool:
         ctypes.c_uint32(n), ctypes.byref(out))
     _capi._check(rc, _ERRMAP)
     return out.value == 1
+
+
+def goldbach_count(n: int) -> int:
+    """Count Goldbach partitions of even n >= 4.
+
+    A partition is a pair (p1, p2) with p1 <= p2, both prime, p1 + p2 == n.
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.goldbach_count(10)
+    2
+    >>> voss.primes.goldbach_count(100)
+    6
+    """
+    if not isinstance(n, int):
+        raise TypeError(f"n must be int, got {type(n).__name__}")
+    if n < 4 or n % 2 != 0:
+        raise VossInvalidNError(f"n must be even and >= 4, got {n}")
+
+    out = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_goldbach_count(
+        ctypes.c_uint64(n), ctypes.byref(out))
+    _capi._check(rc, _ERRMAP)
+    return out.value
+
+
+def goldbach_partitions(n: int) -> list:
+    """Return list of (p1, p2) tuples (Goldbach partitions of even n >= 4).
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.goldbach_partitions(10)
+    [(3, 7), (5, 5)]
+    >>> voss.primes.goldbach_partitions(20)
+    [(3, 17), (7, 13)]
+    """
+    if not isinstance(n, int):
+        raise TypeError(f"n must be int, got {type(n).__name__}")
+    if n < 4 or n % 2 != 0:
+        raise VossInvalidNError(f"n must be even and >= 4, got {n}")
+
+    arr = ctypes.POINTER(ctypes.c_uint64)()
+    count = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_goldbach_partitions(
+        ctypes.c_uint64(n), ctypes.byref(arr), ctypes.byref(count))
+    _capi._check(rc, _ERRMAP)
+
+    if count.value == 0:
+        return []
+    try:
+        flat = [int(arr[i]) for i in range(count.value * 2)]
+        return [(flat[2*i], flat[2*i+1]) for i in range(count.value)]
+    finally:
+        _capi._lib.voss_free(arr)

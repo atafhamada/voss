@@ -139,6 +139,20 @@ int voss_primes_is_mersenne_prime(uint32_t p, int* out);
 // n must be in [0, 5].
 int voss_primes_is_fermat_prime(uint32_t n, int* out);
 
+// ============================================================
+// Goldbach partitions (M5.4)
+// ============================================================
+// Count pairs (p1, p2) with p1 <= p2 both prime and p1 + p2 == n.
+// n must be even and >= 4.
+int voss_primes_goldbach_count(uint64_t n, uint64_t* out);
+
+// Return all Goldbach partitions as a flat array [p1_0, p2_0, p1_1, p2_1, ...].
+// out_count receives the number of pairs (not the array length).
+// Array is malloc'd, freed by voss_free.
+int voss_primes_goldbach_partitions(uint64_t n,
+                                   uint64_t** out_array,
+                                   uint64_t* out_count);
+
 #ifdef __cplusplus
 }
 #endif
