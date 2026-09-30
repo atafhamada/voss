@@ -2,7 +2,7 @@
 
 **Last updated**: 2026-09-30
 **Current milestone**: M4 complete, M5 not started
-**Last stable release**: v0.4.4 (M4)
+**Last stable release**: v0.4.5 (M4 + perf fix)
 
 ---
 
@@ -33,7 +33,8 @@
 
 ## Next step (resume here)
 
-M4 complete at v0.4.4. Next: **M5.0** — comprehensive tests + CI + docs.
+M4 complete + M5 perf fix at v0.4.5. sanitizer passed (0 errors).
+Next: **M5.0 remaining** — reference implementation, docs, CI.
 
 ### M5.0 plan
 
