@@ -34,6 +34,21 @@ int voss_primes_ctx_cousin(voss_primes_ctx* ctx, uint64_t* out);  // gap == 4
 int voss_primes_ctx_sexy(voss_primes_ctx* ctx, uint64_t* out);    // gap == 6
 
 // ============================================================
+// Statistics (M4)
+// ============================================================
+typedef struct {
+    double   mean_gap;     // mean gap value
+    double   std_dev;      // standard deviation
+    double   skewness;     // 3rd standardized moment
+    double   kurtosis;     // excess kurtosis (4th moment - 3)
+    uint64_t total_gaps;   // sum of all gap counts
+} voss_primes_stats_t;
+
+// Compute gap statistics. Requires STANDARD or FULL profile.
+// Returns VOSS_ERR_INVALID_ARG if profile is MINIMAL.
+int voss_primes_ctx_statistics(voss_primes_ctx* ctx, voss_primes_stats_t* out);
+
+// ============================================================
 // Direct functions (M3) — no handle needed
 // ============================================================
 

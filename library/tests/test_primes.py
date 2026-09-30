@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.4.0"
+    assert voss.__version__ == "0.4.1"
 
 
 @skip_no_cuda
@@ -306,3 +306,54 @@ def test_m3_consistency():
         prv = voss.primes.prev_prime(x)
         assert voss.primes.in_range(x + 1, nxt)[0] == nxt
         assert voss.primes.in_range(prv, x - 1)[-1] == prv
+
+
+# ============================================================
+# M4 tests — statistics
+# ============================================================
+
+@skip_no_cuda
+def test_statistics_basic():
+    import voss
+    with voss.primes.Context(10**6) as ctx:
+        s = ctx.statistics()
+    assert s.total_gaps == 78_497
+    assert 12 < s.mean_gap < 14
+    assert s.std_dev > 0
+    assert s.skewness > 0  # right-skewed
+
+
+@skip_no_cuda
+def test_statistics_consistency():
+    """total_gaps == pi(N) - 1."""
+    import voss
+    with voss.primes.Context(10**7) as ctx:
+        pi = ctx.prime_count()
+        s = ctx.statistics()
+    assert s.total_gaps == pi - 1
+
+
+@skip_no_cuda
+def test_statistics_caching():
+    import voss
+    with voss.primes.Context(10**6) as ctx:
+        s1 = ctx.statistics()
+        s2 = ctx.statistics()
+    assert s1 is s2  # same object
+
+
+def test_statistics_rejected_on_minimal():
+    import voss
+    with voss.primes.Context(10**6, profile="minimal") as ctx:
+        with pytest.raises(voss.VossError):
+            ctx.statistics()
+
+
+@skip_no_cuda
+def test_statistics_repr():
+    import voss
+    with voss.primes.Context(10**6) as ctx:
+        s = ctx.statistics()
+    r = repr(s)
+    assert "mean_gap" in r
+    assert "total_gaps" in r

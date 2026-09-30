@@ -558,6 +558,72 @@ static int get_gap_count(voss_primes_ctx* ctx, uint64_t* out, int gap_size) {
     return VOSS_OK;
 }
 
+// ============================================================
+// M4: statistics from cached histogram
+// ============================================================
+extern "C" int voss_primes_ctx_statistics(voss_primes_ctx* ctx,
+                                          voss_primes_stats_t* out) {
+    if (ctx == nullptr) {
+        voss_set_last_error("ctx is null");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (out == nullptr) {
+        voss_set_last_error("out pointer is null");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (ctx->profile == VOSS_PROFILE_MINIMAL) {
+        voss_set_last_error("Profile MINIMAL does not compute gap histogram; "
+                            "use STANDARD or FULL");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (!ctx->has_histogram) {
+        int rc = ensure_full_computed(ctx);
+        if (rc != VOSS_OK) return rc;
+    }
+
+    const std::vector<int64_t>& hist = ctx->cached_histogram;
+
+    // Pass 1: total + weighted sum
+    int64_t total = 0;
+    int64_t weighted = 0;
+    for (int g = 1; g < VOSS_MAX_GAP; g++) {
+        if (hist[g] == 0) continue;
+        total    += hist[g];
+        weighted += (int64_t)g * hist[g];
+    }
+
+    if (total == 0) {
+        out->mean_gap    = 0.0;
+        out->std_dev     = 0.0;
+        out->skewness    = 0.0;
+        out->kurtosis    = 0.0;
+        out->total_gaps  = 0;
+        return VOSS_OK;
+    }
+
+    double mean = (double)weighted / (double)total;
+
+    // Pass 2: variance, 3rd, 4th moments
+    double var_sum = 0.0, m3 = 0.0, m4 = 0.0;
+    for (int g = 1; g < VOSS_MAX_GAP; g++) {
+        if (hist[g] == 0) continue;
+        double d = (double)g - mean;
+        double d2 = d * d;
+        var_sum += (double)hist[g] * d2;
+        m3      += (double)hist[g] * d2 * d;
+        m4      += (double)hist[g] * d2 * d2;
+    }
+    double var = var_sum / (double)total;
+    double std_dev = std::sqrt(var);
+
+    out->mean_gap   = mean;
+    out->std_dev    = std_dev;
+    out->skewness   = (std_dev > 0.0) ? (m3 / (double)total) / (var * std_dev) : 0.0;
+    out->kurtosis   = (var > 0.0) ? (m4 / (double)total) / (var * var) - 3.0 : 0.0;
+    out->total_gaps = (uint64_t)total;
+    return VOSS_OK;
+}
+
 extern "C" int voss_primes_ctx_twins(voss_primes_ctx* ctx, uint64_t* out) {
     return get_gap_count(ctx, out, 2);
 }

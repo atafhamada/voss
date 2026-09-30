@@ -79,6 +79,32 @@ def prime_count(N: int) -> int:
 # ============================================================
 # Context (M1) — handle with lazy cache
 # ============================================================
+class Statistics:
+    """Gap distribution statistics (from histogram).
+
+    Attributes
+    ----------
+    mean_gap : float
+    std_dev : float
+    skewness : float
+    kurtosis : float (excess)
+    total_gaps : int
+    """
+    def __init__(self, mean_gap, std_dev, skewness, kurtosis, total_gaps):
+        self.mean_gap   = mean_gap
+        self.std_dev    = std_dev
+        self.skewness   = skewness
+        self.kurtosis   = kurtosis
+        self.total_gaps = total_gaps
+
+    def __repr__(self):
+        return (f"Statistics(mean_gap={self.mean_gap:.4f}, "
+                f"std_dev={self.std_dev:.4f}, "
+                f"skewness={self.skewness:.4f}, "
+                f"kurtosis={self.kurtosis:.4f}, "
+                f"total_gaps={self.total_gaps})")
+
+
 class Context:
     """Reusable context for multiple queries on the same N.
 
@@ -136,6 +162,7 @@ class Context:
         self._ctx = ctx_ptr
         self._prime_count_cache = None
         self._gap_cache = {}
+        self._stats_cache = None
 
     # --- Context manager ---
     def __enter__(self):
@@ -236,6 +263,41 @@ class Context:
         """
         return self._get_gap_count(
             _capi._lib.voss_primes_ctx_sexy, "sexy")
+
+    def statistics(self) -> Statistics:
+        """Return gap distribution statistics.
+
+        Requires profile "standard" or "full".
+        Result cached after first call.
+
+        Examples
+        --------
+        >>> import voss
+        >>> with voss.primes.Context(10**6) as ctx:
+        ...     s = ctx.statistics()
+        ...     print(f"mean gap: {s.mean_gap:.4f}")
+        mean gap: 12.7391
+        """
+        if self._ctx is None:
+            raise VossError("Context is closed")
+
+        if self._stats_cache is not None:
+            return self._stats_cache
+
+        c_stats = _capi.VossPrimesStats()
+        rc = _capi._lib.voss_primes_ctx_statistics(
+            self._ctx, ctypes.byref(c_stats))
+        _capi._check(rc, _ERRMAP)
+
+        stats = Statistics(
+            mean_gap=c_stats.mean_gap,
+            std_dev=c_stats.std_dev,
+            skewness=c_stats.skewness,
+            kurtosis=c_stats.kurtosis,
+            total_gaps=c_stats.total_gaps,
+        )
+        self._stats_cache = stats
+        return stats
 
 
 # ============================================================

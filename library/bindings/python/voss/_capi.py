@@ -45,6 +45,17 @@ def _find_library():
     )
 
 
+# === M4: statistics struct ===
+class VossPrimesStats(ctypes.Structure):
+    _fields_ = [
+        ("mean_gap",   ctypes.c_double),
+        ("std_dev",    ctypes.c_double),
+        ("skewness",   ctypes.c_double),
+        ("kurtosis",   ctypes.c_double),
+        ("total_gaps", ctypes.c_uint64),
+    ]
+
+
 _lib = ctypes.CDLL(_find_library())
 
 # === Function signatures ===
@@ -127,6 +138,12 @@ _lib.voss_primes_ctx_sexy.argtypes = [
     ctypes.POINTER(ctypes.c_uint64),
 ]
 _lib.voss_primes_ctx_sexy.restype = ctypes.c_int
+
+_lib.voss_primes_ctx_statistics.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(VossPrimesStats),
+]
+_lib.voss_primes_ctx_statistics.restype = ctypes.c_int
 
 
 # === Error codes (mirror voss.h) ===
