@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.4.1"
+    assert voss.__version__ == "0.4.2"
 
 
 @skip_no_cuda
@@ -357,3 +357,74 @@ def test_statistics_repr():
     r = repr(s)
     assert "mean_gap" in r
     assert "total_gaps" in r
+
+
+# ============================================================
+# M4 part 3 — Chebyshev bias
+# ============================================================
+
+@skip_no_cuda
+def test_chebyshev_10e4():
+    import voss
+    with voss.primes.Context(10**4) as ctx:
+        cb = ctx.chebyshev()
+    assert cb.pi_4_1 == 609
+    assert cb.pi_4_3 == 619
+    assert cb.difference == 10
+
+
+@skip_no_cuda
+def test_chebyshev_10e6():
+    import voss
+    with voss.primes.Context(10**6) as ctx:
+        cb = ctx.chebyshev()
+    assert cb.pi_4_1 == 39_175
+    assert cb.pi_4_3 == 39_322
+    assert cb.difference == 147
+
+
+@skip_no_cuda
+def test_chebyshev_10e8():
+    import voss
+    with voss.primes.Context(10**8) as ctx:
+        cb = ctx.chebyshev()
+    assert cb.pi_4_1 == 2_880_504
+    assert cb.pi_4_3 == 2_880_950
+    assert cb.difference == 446
+
+
+@skip_no_cuda
+def test_chebyshev_consistency():
+    """pi_4_1 + pi_4_3 + 1 (for 2) == pi(N)."""
+    import voss
+    with voss.primes.Context(10**6) as ctx:
+        pi = ctx.prime_count()
+        cb = ctx.chebyshev()
+    # primes: 2 + (mod1) + (mod3)
+    assert cb.pi_4_1 + cb.pi_4_3 + 1 == pi
+
+
+@skip_no_cuda
+def test_chebyshev_caching():
+    import voss
+    with voss.primes.Context(10**6) as ctx:
+        cb1 = ctx.chebyshev()
+        cb2 = ctx.chebyshev()
+    assert cb1 is cb2
+
+
+def test_chebyshev_rejected_on_minimal():
+    import voss
+    with voss.primes.Context(10**6, profile="minimal") as ctx:
+        with pytest.raises(voss.VossError):
+            ctx.chebyshev()
+
+
+@skip_no_cuda
+def test_chebyshev_repr():
+    import voss
+    with voss.primes.Context(10**4) as ctx:
+        cb = ctx.chebyshev()
+    r = repr(cb)
+    assert "pi_4_1" in r
+    assert "difference" in r

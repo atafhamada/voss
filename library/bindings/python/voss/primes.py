@@ -79,6 +79,31 @@ def prime_count(N: int) -> int:
 # ============================================================
 # Context (M1) — handle with lazy cache
 # ============================================================
+class ChebyshevBias:
+    """Chebyshev bias result.
+
+    Attributes
+    ----------
+    pi_4_1 : int
+        Number of primes <= N that are == 1 (mod 4)
+    pi_4_3 : int
+        Number of primes <= N that are == 3 (mod 4)
+    """
+    def __init__(self, pi_4_1, pi_4_3):
+        self.pi_4_1 = pi_4_1
+        self.pi_4_3 = pi_4_3
+
+    @property
+    def difference(self) -> int:
+        """pi_4_3 - pi_4_1 (typically positive)."""
+        return self.pi_4_3 - self.pi_4_1
+
+    def __repr__(self):
+        return (f"ChebyshevBias(pi_4_1={self.pi_4_1:,}, "
+                f"pi_4_3={self.pi_4_3:,}, "
+                f"difference={self.difference:+,})")
+
+
 class Statistics:
     """Gap distribution statistics (from histogram).
 
@@ -163,6 +188,7 @@ class Context:
         self._prime_count_cache = None
         self._gap_cache = {}
         self._stats_cache = None
+        self._cheb_cache = None
 
     # --- Context manager ---
     def __enter__(self):
@@ -263,6 +289,35 @@ class Context:
         """
         return self._get_gap_count(
             _capi._lib.voss_primes_ctx_sexy, "sexy")
+
+    def chebyshev(self) -> ChebyshevBias:
+        """Return Chebyshev bias: counts of primes == 1 and 3 (mod 4).
+
+        Requires profile "standard" or "full". Cached after first call.
+
+        Examples
+        --------
+        >>> import voss
+        >>> with voss.primes.Context(10**6) as ctx:
+        ...     cb = ctx.chebyshev()
+        ...     print(cb.pi_4_1, cb.pi_4_3, cb.difference)
+        39175 39322 147
+        """
+        if self._ctx is None:
+            raise VossError("Context is closed")
+
+        if self._cheb_cache is not None:
+            return self._cheb_cache
+
+        c1 = ctypes.c_uint64(0)
+        c3 = ctypes.c_uint64(0)
+        rc = _capi._lib.voss_primes_ctx_chebyshev_bias(
+            self._ctx, ctypes.byref(c1), ctypes.byref(c3))
+        _capi._check(rc, _ERRMAP)
+
+        cb = ChebyshevBias(pi_4_1=c1.value, pi_4_3=c3.value)
+        self._cheb_cache = cb
+        return cb
 
     def statistics(self) -> Statistics:
         """Return gap distribution statistics.

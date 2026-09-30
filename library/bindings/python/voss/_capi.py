@@ -145,6 +145,13 @@ _lib.voss_primes_ctx_statistics.argtypes = [
 ]
 _lib.voss_primes_ctx_statistics.restype = ctypes.c_int
 
+_lib.voss_primes_ctx_chebyshev_bias.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_uint64),
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_ctx_chebyshev_bias.restype = ctypes.c_int
+
 
 # === Error codes (mirror voss.h) ===
 VOSS_OK = 0

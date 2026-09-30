@@ -51,6 +51,13 @@ __global__ void gaps_w30_seg_kernel(
     int large_gap_threshold,
     int max_large_gaps);
 
+__global__ void mod4_count_kernel(
+    const uint64_t* __restrict__ positions,
+    uint64_t n,
+    uint64_t k_base,
+    unsigned long long* __restrict__ cnt1,
+    unsigned long long* __restrict__ cnt3);
+
 // === M2 constants ===
 #define VOSS_MAX_GAP 100000
 
@@ -68,6 +75,11 @@ struct voss_primes_ctx {
     // Lazy cache: gap histogram (size VOSS_MAX_GAP)
     std::vector<int64_t> cached_histogram;
     bool has_histogram = false;
+
+    // Lazy cache: Chebyshev bias counts
+    uint64_t cached_class1 = 0;   // primes === 1 (mod 4), includes 5
+    uint64_t cached_class3 = 0;   // primes === 3 (mod 4), includes 3
+    bool has_chebyshev = false;
 };
 
 // ============================================================
@@ -177,11 +189,15 @@ inline void check_cuda(cudaError_t err, const char* what) {
 struct FullResult {
     uint64_t prime_count;
     std::vector<int64_t> histogram;  // empty if compute_gaps == false
+    uint64_t class1 = 0;             // Chebyshev: === 1 (mod 4)
+    uint64_t class3 = 0;             // Chebyshev: === 3 (mod 4)
 };
 
 FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
     FullResult result;
     result.prime_count = 0;
+    uint64_t class1_total = 0;
+    uint64_t class3_total = 0;
 
     // Small N handled directly. Histogram must be sized correctly even if empty
     // to avoid out-of-bounds reads in get_gap_count.
@@ -249,12 +265,18 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
         DeviceBuffer lg_buf(sizeof(LargeGap));
         DeviceBuffer lgcnt_buf(sizeof(unsigned int));
 
+        // Mod-4 buffers (always needed if compute_gaps)
+        DeviceBuffer mod4_1_buf(sizeof(unsigned long long));
+        DeviceBuffer mod4_3_buf(sizeof(unsigned long long));
+
         uint32_t* bits_d = bits_buf.as_u32();
         uint64_t* positions_d = pos_buf.as_u64();
         uint64_t* count_d = cnt_buf.as_u64();
         int64_t*  gaps_d = gaps_buf.as_i64();
         LargeGap* large_gaps_d = lg_buf.as_lg();
         unsigned int* lg_cnt_d = lgcnt_buf.as_u32i();
+        unsigned long long* mod4_1_d = static_cast<unsigned long long*>(mod4_1_buf.ptr);
+        unsigned long long* mod4_3_d = static_cast<unsigned long long*>(mod4_3_buf.ptr);
 
         if (compute_gaps) {
             check_cuda(cudaMemset(gaps_d, 0, (size_t)VOSS_MAX_GAP * sizeof(int64_t)),
@@ -381,6 +403,24 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
                 thrust::sort(ptr, ptr + n_pos);
                 check_cuda(cudaDeviceSynchronize(), "thrust::sort");
 
+                // Mod-4 count (Chebyshev)
+                check_cuda(cudaMemset(mod4_1_d, 0, sizeof(unsigned long long)),
+                           "cudaMemset(mod4_1)");
+                check_cuda(cudaMemset(mod4_3_d, 0, sizeof(unsigned long long)),
+                           "cudaMemset(mod4_3)");
+                int mod4_grid = (int)((n_pos + 256 - 1) / 256);
+                mod4_count_kernel<<<mod4_grid, 256>>>(
+                    positions_d, n_pos, k_base, mod4_1_d, mod4_3_d);
+                check_cuda(cudaDeviceSynchronize(), "cudaDeviceSynchronize(mod4)");
+
+                unsigned long long c1, c3;
+                check_cuda(cudaMemcpy(&c1, mod4_1_d, sizeof(c1),
+                                      cudaMemcpyDeviceToHost), "cudaMemcpy(mod4_1)");
+                check_cuda(cudaMemcpy(&c3, mod4_3_d, sizeof(c3),
+                                      cudaMemcpyDeviceToHost), "cudaMemcpy(mod4_3)");
+                class1_total += c1;
+                class3_total += c3;
+
                 // First/last values in this segment
                 uint64_t first_local_idx = 0, last_local_idx = 0;
                 check_cuda(cudaMemcpy(&first_local_idx, positions_d, 8, cudaMemcpyDeviceToHost),
@@ -438,6 +478,15 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
             result.histogram[1] += 1;  // gap between 2 and 3
             result.histogram[2] += 1;  // gap between 3 and 5
         }
+
+        // Add +1 to class1 (for 5) and +1 to class3 (for 3) — v7-golden convention
+        if (compute_gaps) {
+            class1_total += 1;  // prime 5 (=== 1 mod 4)
+            class3_total += 1;  // prime 3 (=== 3 mod 4)
+        }
+
+        result.class1 = class1_total;
+        result.class3 = class3_total;
 
         result.prime_count = total;
     }
@@ -505,6 +554,9 @@ static int ensure_full_computed(voss_primes_ctx* ctx) {
         if (need_gaps) {
             ctx->cached_histogram = std::move(r.histogram);
             ctx->has_histogram = true;
+            ctx->cached_class1 = r.class1;
+            ctx->cached_class3 = r.class3;
+            ctx->has_chebyshev = true;
         }
         return VOSS_OK;
     } catch (const std::exception& e) {
@@ -621,6 +673,31 @@ extern "C" int voss_primes_ctx_statistics(voss_primes_ctx* ctx,
     out->skewness   = (std_dev > 0.0) ? (m3 / (double)total) / (var * std_dev) : 0.0;
     out->kurtosis   = (var > 0.0) ? (m4 / (double)total) / (var * var) - 3.0 : 0.0;
     out->total_gaps = (uint64_t)total;
+    return VOSS_OK;
+}
+
+extern "C" int voss_primes_ctx_chebyshev_bias(voss_primes_ctx* ctx,
+                                                uint64_t* out_pi_4_1,
+                                                uint64_t* out_pi_4_3) {
+    if (ctx == nullptr) {
+        voss_set_last_error("ctx is null");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (out_pi_4_1 == nullptr || out_pi_4_3 == nullptr) {
+        voss_set_last_error("out pointers must not be null");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (ctx->profile == VOSS_PROFILE_MINIMAL) {
+        voss_set_last_error("Profile MINIMAL does not compute Chebyshev bias; "
+                            "use STANDARD or FULL");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    if (!ctx->has_chebyshev) {
+        int rc = ensure_full_computed(ctx);
+        if (rc != VOSS_OK) return rc;
+    }
+    *out_pi_4_1 = ctx->cached_class1;
+    *out_pi_4_3 = ctx->cached_class3;
     return VOSS_OK;
 }
 

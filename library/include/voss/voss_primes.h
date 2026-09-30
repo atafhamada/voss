@@ -49,6 +49,15 @@ typedef struct {
 int voss_primes_ctx_statistics(voss_primes_ctx* ctx, voss_primes_stats_t* out);
 
 // ============================================================
+// Chebyshev bias (M4)
+// ============================================================
+// Count primes <= N that are 1 or 3 (mod 4).
+// Requires STANDARD or FULL profile.
+int voss_primes_ctx_chebyshev_bias(voss_primes_ctx* ctx,
+                                   uint64_t* out_pi_4_1,
+                                   uint64_t* out_pi_4_3);
+
+// ============================================================
 // Direct functions (M3) — no handle needed
 // ============================================================
 

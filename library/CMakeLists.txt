@@ -40,6 +40,7 @@ set(VOSS_SOURCES
     src/primes/sieve.cu
     src/primes/extract.cu
     src/primes/gaps.cu
+    src/primes/chebyshev.cu
     src/primes/range.cu
     src/primes/nth.cu
     src/primes/next_prev.cu
