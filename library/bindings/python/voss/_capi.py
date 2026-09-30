@@ -16,16 +16,16 @@ def _find_library():
 
     1. VOSS_LIBRARY_PATH environment variable (explicit override)
     2. Same directory as this package (installed wheel)
-    3. Standard build directory (development layout)
+    3. Development build directory (development layout)
     """
-    # 1. Explicit override
+    # 1. Explicit override (still supported for development)
     env_path = os.environ.get("VOSS_LIBRARY_PATH")
     if env_path:
         if not os.path.exists(env_path):
             raise VossError(f"VOSS_LIBRARY_PATH does not exist: {env_path}")
         return env_path
 
-    # 2. Installed alongside this module
+    # 2. Installed alongside this module (the wheel case)
     pkg_dir = Path(__file__).parent
     for name in ["libvoss.so", "libvoss.dylib", "voss.dll"]:
         candidate = pkg_dir / name
@@ -41,7 +41,8 @@ def _find_library():
 
     raise VossError(
         "libvoss.so not found. "
-        "Set VOSS_LIBRARY_PATH or build the library first."
+        "If you installed via pip, the wheel may be corrupted. "
+        "Otherwise, set VOSS_LIBRARY_PATH or build the library first."
     )
 
 
