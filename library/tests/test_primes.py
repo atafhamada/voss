@@ -152,3 +152,61 @@ def test_context_multiple_instances():
          voss.primes.Context(10**7) as c2:
         assert c1.prime_count() == 78_498
         assert c2.prime_count() == 664_579
+
+
+# ============================================================
+# M2 tests — twins, cousin, sexy
+# ============================================================
+
+@skip_no_cuda
+def test_twins_10e9():
+    import voss
+    with voss.primes.Context(10**9) as ctx:
+        assert ctx.twins() == 3_424_506
+
+
+@skip_no_cuda
+def test_cousin_10e9():
+    import voss
+    with voss.primes.Context(10**9) as ctx:
+        assert ctx.cousin() == 3_424_679
+
+
+@skip_no_cuda
+def test_sexy_10e9():
+    import voss
+    with voss.primes.Context(10**9) as ctx:
+        assert ctx.sexy() == 6_089_791
+
+
+@skip_no_cuda
+def test_gaps_all_at_once():
+    import voss
+    with voss.primes.Context(10**9) as ctx:
+        assert ctx.twins()  == 3_424_506
+        assert ctx.cousin() == 3_424_679
+        assert ctx.sexy()   == 6_089_791
+
+
+@skip_no_cuda
+def test_gaps_caching():
+    import voss
+    with voss.primes.Context(10**8) as ctx:
+        t1 = ctx.twins()
+        t2 = ctx.twins()  # cached
+        assert t1 == t2 == 440_312
+
+
+def test_gaps_rejected_on_minimal():
+    import voss
+    with voss.primes.Context(10**6, profile="minimal") as ctx:
+        with pytest.raises(voss.VossError):
+            ctx.twins()
+
+
+@skip_no_cuda
+def test_gaps_on_full_profile():
+    import voss
+    with voss.primes.Context(10**6, profile="full") as ctx:
+        # Same values as standard, since histogram is the same
+        assert ctx.twins() == 8_169

@@ -135,6 +135,7 @@ class Context:
         self._profile = profile_int
         self._ctx = ctx_ptr
         self._prime_count_cache = None
+        self._gap_cache = {}
 
     # --- Context manager ---
     def __enter__(self):
@@ -185,3 +186,53 @@ class Context:
         _capi._check(rc, _ERRMAP)
         self._prime_count_cache = out.value
         return out.value
+
+    # --- M2: gap queries ---
+    def _get_gap_count(self, lib_func, cache_key: str) -> int:
+        """Internal: call a gap-count C function and cache result."""
+        if self._ctx is None:
+            raise VossError("Context is closed")
+
+        cached = self._gap_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        out = ctypes.c_uint64(0)
+        rc = lib_func(self._ctx, ctypes.byref(out))
+        _capi._check(rc, _ERRMAP)
+        self._gap_cache[cache_key] = out.value
+        return out.value
+
+    def twins(self) -> int:
+        """Count twin prime pairs (gap == 2) up to N.
+
+        Requires profile "standard" or "full".
+        Result cached after first call.
+
+        Examples
+        --------
+        >>> import voss
+        >>> with voss.primes.Context(10**9) as ctx:
+        ...     ctx.twins()
+        3424506
+        """
+        return self._get_gap_count(
+            _capi._lib.voss_primes_ctx_twins, "twins")
+
+    def cousin(self) -> int:
+        """Count cousin prime pairs (gap == 4) up to N.
+
+        Requires profile "standard" or "full".
+        Result cached after first call.
+        """
+        return self._get_gap_count(
+            _capi._lib.voss_primes_ctx_cousin, "cousin")
+
+    def sexy(self) -> int:
+        """Count sexy prime pairs (gap == 6) up to N.
+
+        Requires profile "standard" or "full".
+        Result cached after first call.
+        """
+        return self._get_gap_count(
+            _capi._lib.voss_primes_ctx_sexy, "sexy")

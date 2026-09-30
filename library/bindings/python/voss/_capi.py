@@ -77,6 +77,24 @@ _lib.voss_primes_ctx_prime_count.argtypes = [
 ]
 _lib.voss_primes_ctx_prime_count.restype = ctypes.c_int
 
+_lib.voss_primes_ctx_twins.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_ctx_twins.restype = ctypes.c_int
+
+_lib.voss_primes_ctx_cousin.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_ctx_cousin.restype = ctypes.c_int
+
+_lib.voss_primes_ctx_sexy.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_ctx_sexy.restype = ctypes.c_int
+
 
 # === Error codes (mirror voss.h) ===
 VOSS_OK = 0
