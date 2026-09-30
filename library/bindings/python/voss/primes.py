@@ -236,3 +236,153 @@ class Context:
         """
         return self._get_gap_count(
             _capi._lib.voss_primes_ctx_sexy, "sexy")
+
+
+# ============================================================
+# M3: direct module-level functions
+# ============================================================
+
+def in_range(a: int, b: int) -> list:
+    """Return list of primes in [a, b] (inclusive).
+
+    Uses GPU sieve. Default limit: 10^7 primes (80 MB).
+    For larger ranges use `in_range_with_limit`.
+
+    Parameters
+    ----------
+    a : int
+        Lower bound (inclusive). Values < 2 are ignored.
+    b : int
+        Upper bound (inclusive). Must be <= 10^14.
+
+    Returns
+    -------
+    list of int
+        Primes in [a, b], sorted ascending.
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.in_range(10, 30)
+    [11, 13, 17, 19, 23, 29]
+    >>> len(voss.primes.in_range(10**9, 10**9 + 100))
+    6
+    """
+    if not isinstance(a, int) or not isinstance(b, int):
+        raise TypeError("a and b must be int")
+    if b < a:
+        return []
+
+    arr = ctypes.POINTER(ctypes.c_uint64)()
+    count = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_in_range(
+        ctypes.c_uint64(a), ctypes.c_uint64(b),
+        ctypes.byref(arr), ctypes.byref(count),
+    )
+    _capi._check(rc, _ERRMAP)
+
+    n = count.value
+    if n == 0:
+        return []
+    try:
+        return [int(arr[i]) for i in range(n)]
+    finally:
+        _capi._lib.voss_free(arr)
+
+
+def in_range_with_limit(a: int, b: int, max_count: int) -> list:
+    """Like in_range, but with a custom maximum count.
+
+    Raises VossError if [a, b] contains more than max_count primes.
+    """
+    if not isinstance(a, int) or not isinstance(b, int):
+        raise TypeError("a and b must be int")
+    if not isinstance(max_count, int) or max_count <= 0:
+        raise ValueError("max_count must be positive int")
+    if b < a:
+        return []
+
+    arr = ctypes.POINTER(ctypes.c_uint64)()
+    count = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_in_range_with_limit(
+        ctypes.c_uint64(a), ctypes.c_uint64(b),
+        ctypes.c_uint64(max_count),
+        ctypes.byref(arr), ctypes.byref(count),
+    )
+    _capi._check(rc, _ERRMAP)
+
+    n = count.value
+    if n == 0:
+        return []
+    try:
+        return [int(arr[i]) for i in range(n)]
+    finally:
+        _capi._lib.voss_free(arr)
+
+
+def nth(n: int) -> int:
+    """Return the n-th prime (1-indexed): nth(1)=2, nth(2)=3, ...
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.nth(1)
+    2
+    >>> voss.primes.nth(1000)
+    7919
+    """
+    if not isinstance(n, int):
+        raise TypeError("n must be int")
+    if n < 1:
+        raise VossInvalidNError(f"n must be >= 1 (1-indexed), got {n}")
+
+    out = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_nth(
+        ctypes.c_uint64(n), ctypes.byref(out),
+    )
+    _capi._check(rc, _ERRMAP)
+    return out.value
+
+
+def next_prime(x: int) -> int:
+    """Return the smallest prime strictly greater than x.
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.next_prime(10)
+    11
+    >>> voss.primes.next_prime(10**9)
+    1000000007
+    """
+    if not isinstance(x, int):
+        raise TypeError("x must be int")
+
+    out = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_next(
+        ctypes.c_uint64(x), ctypes.byref(out),
+    )
+    _capi._check(rc, _ERRMAP)
+    return out.value
+
+
+def prev_prime(x: int) -> int:
+    """Return the largest prime strictly less than x.
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.prev_prime(10)
+    7
+    >>> voss.primes.prev_prime(100)
+    97
+    """
+    if not isinstance(x, int):
+        raise TypeError("x must be int")
+
+    out = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_prev(
+        ctypes.c_uint64(x), ctypes.byref(out),
+    )
+    _capi._check(rc, _ERRMAP)
+    return out.value

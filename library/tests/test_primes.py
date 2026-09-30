@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.1.0"
+    assert voss.__version__ == "0.4.0"
 
 
 @skip_no_cuda
@@ -210,3 +210,99 @@ def test_gaps_on_full_profile():
     with voss.primes.Context(10**6, profile="full") as ctx:
         # Same values as standard, since histogram is the same
         assert ctx.twins() == 8_169
+
+
+# ============================================================
+# M3 tests — in_range, nth, next_prime, prev_prime
+# ============================================================
+
+@skip_no_cuda
+def test_in_range_small():
+    import voss
+    assert voss.primes.in_range(2, 10) == [2, 3, 5, 7]
+    assert voss.primes.in_range(10, 30) == [11, 13, 17, 19, 23, 29]
+    assert voss.primes.in_range(100, 130) == [101, 103, 107, 109, 113, 127]
+
+
+def test_in_range_empty():
+    import voss
+    assert voss.primes.in_range(20, 22) == []
+    assert voss.primes.in_range(100, 100) == []
+    assert voss.primes.in_range(5, 4) == []
+
+
+@skip_no_cuda
+def test_in_range_large():
+    import voss
+    primes = voss.primes.in_range(10**9, 10**9 + 10000)
+    assert len(primes) == 487
+    assert primes[0] == 1000000007
+    assert primes[-1] == 1000009999
+
+
+def test_in_range_invalid_args():
+    import voss
+    with pytest.raises(TypeError):
+        voss.primes.in_range("a", 10)
+    with pytest.raises(TypeError):
+        voss.primes.in_range(10, "b")
+
+
+@skip_no_cuda
+def test_nth_small():
+    import voss
+    assert voss.primes.nth(1) == 2
+    assert voss.primes.nth(2) == 3
+    assert voss.primes.nth(3) == 5
+    assert voss.primes.nth(10) == 29
+    assert voss.primes.nth(100) == 541
+    assert voss.primes.nth(1000) == 7919
+
+
+def test_nth_invalid():
+    import voss
+    with pytest.raises(voss.VossError):
+        voss.primes.nth(0)
+    with pytest.raises(TypeError):
+        voss.primes.nth("hello")
+
+
+@skip_no_cuda
+def test_next_prime():
+    import voss
+    assert voss.primes.next_prime(1) == 2
+    assert voss.primes.next_prime(2) == 3
+    assert voss.primes.next_prime(10) == 11
+    assert voss.primes.next_prime(100) == 101
+    assert voss.primes.next_prime(10**6) == 1000003
+    assert voss.primes.next_prime(10**9) == 1000000007
+
+
+@skip_no_cuda
+def test_prev_prime():
+    import voss
+    assert voss.primes.prev_prime(3) == 2
+    assert voss.primes.prev_prime(5) == 3
+    assert voss.primes.prev_prime(10) == 7
+    assert voss.primes.prev_prime(100) == 97
+    assert voss.primes.prev_prime(1000) == 997
+    assert voss.primes.prev_prime(10**9) == 999999937
+
+
+def test_prev_prime_invalid():
+    import voss
+    with pytest.raises(voss.VossError):
+        voss.primes.prev_prime(2)
+    with pytest.raises(voss.VossError):
+        voss.primes.prev_prime(1)
+
+
+@skip_no_cuda
+def test_m3_consistency():
+    """next(x) is the first prime > x; prev(x) is the last prime < x."""
+    import voss
+    for x in [100, 1000, 10**6]:
+        nxt = voss.primes.next_prime(x)
+        prv = voss.primes.prev_prime(x)
+        assert voss.primes.in_range(x + 1, nxt)[0] == nxt
+        assert voss.primes.in_range(prv, x - 1)[-1] == prv

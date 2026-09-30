@@ -19,6 +19,11 @@ extern "C" {
 const char* voss_strerror(int code);
 const char* voss_get_last_error(void);
 
+// === Memory management (M3) ===
+// Free memory allocated by VOSS functions.
+// Always safe to call with NULL.
+void voss_free(void* ptr);
+
 #ifdef __cplusplus
 }
 #endif

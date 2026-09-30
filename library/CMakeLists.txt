@@ -32,6 +32,7 @@ set(CMAKE_CUDA_ARCHITECTURES "${VOSS_CUDA_ARCHS}"
 # Source list shared between static and shared libraries
 set(VOSS_SOURCES
     src/core/error.cpp
+    src/core/alloc.cpp
     src/core/cuda_context.cpp
     src/core/memory.cpp
     src/primes/prime_count.cu
@@ -39,6 +40,9 @@ set(VOSS_SOURCES
     src/primes/sieve.cu
     src/primes/extract.cu
     src/primes/gaps.cu
+    src/primes/range.cu
+    src/primes/nth.cu
+    src/primes/next_prev.cu
 )
 
 # Static library

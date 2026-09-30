@@ -60,6 +60,39 @@ _lib.voss_strerror.restype = ctypes.c_char_p
 _lib.voss_get_last_error.argtypes = []
 _lib.voss_get_last_error.restype = ctypes.c_char_p
 
+# === M3: direct functions ===
+_lib.voss_primes_in_range.argtypes = [
+    ctypes.c_uint64, ctypes.c_uint64,
+    ctypes.POINTER(ctypes.POINTER(ctypes.c_uint64)),
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_in_range.restype = ctypes.c_int
+
+_lib.voss_primes_in_range_with_limit.argtypes = [
+    ctypes.c_uint64, ctypes.c_uint64, ctypes.c_uint64,
+    ctypes.POINTER(ctypes.POINTER(ctypes.c_uint64)),
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_in_range_with_limit.restype = ctypes.c_int
+
+_lib.voss_primes_nth.argtypes = [
+    ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_nth.restype = ctypes.c_int
+
+_lib.voss_primes_next.argtypes = [
+    ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_next.restype = ctypes.c_int
+
+_lib.voss_primes_prev.argtypes = [
+    ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_primes_prev.restype = ctypes.c_int
+
+_lib.voss_free.argtypes = [ctypes.c_void_p]
+_lib.voss_free.restype = None
+
 # === Handle (M1) ===
 _lib.voss_primes_ctx_new.argtypes = [
     ctypes.c_uint64,
