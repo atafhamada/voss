@@ -14,3 +14,9 @@ __pycache__/
 .vscode/
 .idea/
 *.swp
+
+# Test outputs (CSV export smoke tests)
+test_export_*.csv
+*_chebyshev.csv
+*_large_gaps.csv
+*_stats.csv
