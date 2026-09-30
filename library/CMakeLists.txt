@@ -48,6 +48,7 @@ set(VOSS_SOURCES
     src/primes/nth.cu
     src/primes/next_prev.cu
     src/primes/factorize.cpp
+    src/primes/mersenne_fermat.cpp
 )
 
 # Static library

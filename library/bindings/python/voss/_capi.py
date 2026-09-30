@@ -181,6 +181,18 @@ _lib.voss_primes_ctx_sophie_germain.argtypes = [
 ]
 _lib.voss_primes_ctx_sophie_germain.restype = ctypes.c_int
 
+_lib.voss_primes_is_mersenne_prime.argtypes = [
+    ctypes.c_uint32,
+    ctypes.POINTER(ctypes.c_int),
+]
+_lib.voss_primes_is_mersenne_prime.restype = ctypes.c_int
+
+_lib.voss_primes_is_fermat_prime.argtypes = [
+    ctypes.c_uint32,
+    ctypes.POINTER(ctypes.c_int),
+]
+_lib.voss_primes_is_fermat_prime.restype = ctypes.c_int
+
 _lib.voss_primes_factorize.argtypes = [
     ctypes.c_uint64,
     ctypes.POINTER(ctypes.POINTER(ctypes.c_uint64)),

@@ -689,3 +689,57 @@ def factorize(x: int) -> list:
         return [int(arr[i]) for i in range(n)]
     finally:
         _capi._lib.voss_free(arr)
+
+
+def is_mersenne_prime(p: int) -> bool:
+    """Test if M_p = 2^p - 1 is prime (via Lucas-Lehmer).
+
+    p must be in [2, 63].
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.is_mersenne_prime(31)
+    True
+    >>> voss.primes.is_mersenne_prime(11)
+    False
+    """
+    if not isinstance(p, int):
+        raise TypeError(f"p must be int, got {type(p).__name__}")
+    if p < 2:
+        raise VossInvalidNError(f"p must be >= 2, got {p}")
+    if p > 63:
+        raise VossError(f"p must be <= 63, got {p}")
+
+    out = ctypes.c_int(0)
+    rc = _capi._lib.voss_primes_is_mersenne_prime(
+        ctypes.c_uint32(p), ctypes.byref(out))
+    _capi._check(rc, _ERRMAP)
+    return out.value == 1
+
+
+def is_fermat_prime(n: int) -> bool:
+    """Test if F_n = 2^(2^n) + 1 is prime.
+
+    n must be in [0, 5].
+
+    Examples
+    --------
+    >>> import voss
+    >>> voss.primes.is_fermat_prime(3)   # 257
+    True
+    >>> voss.primes.is_fermat_prime(5)   # 4294967297 = 641*6700417
+    False
+    """
+    if not isinstance(n, int):
+        raise TypeError(f"n must be int, got {type(n).__name__}")
+    if n < 0:
+        raise VossInvalidNError(f"n must be >= 0, got {n}")
+    if n > 5:
+        raise VossError(f"n must be <= 5, got {n}")
+
+    out = ctypes.c_int(0)
+    rc = _capi._lib.voss_primes_is_fermat_prime(
+        ctypes.c_uint32(n), ctypes.byref(out))
+    _capi._check(rc, _ERRMAP)
+    return out.value == 1

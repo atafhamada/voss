@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.5.2"
+    assert voss.__version__ == "0.5.3"
 
 
 @skip_no_cuda
@@ -637,3 +637,48 @@ def test_factorize_invalid():
         voss.primes.factorize(1)
     with pytest.raises(TypeError):
         voss.primes.factorize("hello")
+
+
+# ============================================================
+# M5.3 — Mersenne + Fermat
+# ============================================================
+
+@skip_no_cuda
+def test_mersenne_known_primes():
+    import voss
+    for p in [2, 3, 5, 7, 13, 17, 19, 31, 61]:
+        assert voss.primes.is_mersenne_prime(p) is True
+
+
+@skip_no_cuda
+def test_mersenne_known_composites():
+    import voss
+    for p in [11, 23, 29, 37, 41, 43, 47, 53, 59]:
+        assert voss.primes.is_mersenne_prime(p) is False
+
+
+def test_mersenne_invalid():
+    import voss
+    with pytest.raises(voss.VossError):
+        voss.primes.is_mersenne_prime(1)
+    with pytest.raises(voss.VossError):
+        voss.primes.is_mersenne_prime(64)
+    with pytest.raises(TypeError):
+        voss.primes.is_mersenne_prime("hello")
+
+
+@skip_no_cuda
+def test_fermat_known():
+    import voss
+    # F_0..F_4 are prime, F_5 is composite
+    for n in [0, 1, 2, 3, 4]:
+        assert voss.primes.is_fermat_prime(n) is True
+    assert voss.primes.is_fermat_prime(5) is False
+
+
+def test_fermat_invalid():
+    import voss
+    with pytest.raises(voss.VossError):
+        voss.primes.is_fermat_prime(6)
+    with pytest.raises(TypeError):
+        voss.primes.is_fermat_prime("hello")

@@ -128,6 +128,17 @@ int voss_primes_factorize(uint64_t x,
                           uint64_t** out_array,
                           uint64_t* out_count);
 
+// ============================================================
+// Mersenne + Fermat primes (M5.3)
+// ============================================================
+// Test whether M_p = 2^p - 1 is prime (Lucas-Lehmer).
+// p must be in [2, 63].
+int voss_primes_is_mersenne_prime(uint32_t p, int* out);
+
+// Test whether F_n = 2^(2^n) + 1 is prime.
+// n must be in [0, 5].
+int voss_primes_is_fermat_prime(uint32_t n, int* out);
+
 #ifdef __cplusplus
 }
 #endif
