@@ -2,12 +2,24 @@
 
 **GPU-accelerated prime gap library** (part of VOSS).
 
+## Install
+
+```bash
+pip install voss
+```
+
+- PyPI: https://pypi.org/project/voss/
+- Binary wheel (Linux x86_64, manylinux). Windows/macOS not supported yet.
+
+> Note: the old `voss-prime-gaps` package on PyPI is deprecated. Use `voss`.
+
 ## Status
 
-**v0.4.5** — M4 complete + performance fixes.
+**v0.5.6** — M5 complete (all primes section).
 
 Implemented: prime_count, Context, twins/cousin/sexy, in_range,
-nth, next_prime, prev_prime, statistics, chebyshev, large_gaps, export_csv.
+nth, next_prime, prev_prime, statistics, chebyshev, large_gaps, export_csv,
+is_prime, sophie_germain, factorize, is_mersenne_prime, is_fermat_prime, goldbach.
 
 ## Requirements
 

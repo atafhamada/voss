@@ -672,6 +672,8 @@ voss/
 
 **[Decision]**: No CUDA source on PyPI, no wheels except Tier 1, no digital signatures, no Docker, no conda-forge in first round.
 
+**[Decision]**: The `publish/` directory is a local PyPI build workspace. It is NOT tracked in git and is listed in `.gitignore`.
+
 ## 5.13 Transition to Apache-2.0
 
 **[Decision]**:

@@ -20,3 +20,6 @@ test_export_*.csv
 *_chebyshev.csv
 *_large_gaps.csv
 *_stats.csv
+
+# PyPI publishing workspace (temp, not tracked)
+publish/

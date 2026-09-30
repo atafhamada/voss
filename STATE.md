@@ -1,7 +1,7 @@
 # VOSS - Project State
 
 **Last updated**: 2026-09-30 (end of long session)
-**Current milestone**: M5 complete (all primes section done)
+**Current milestone**: M5.x complete (repo cleanup after PyPI release)
 **Latest release**: v0.5.6 (published on PyPI as `voss`)
 
 ---
@@ -51,6 +51,7 @@
 - M5.4 (v0.5.4): Goldbach partitions
 - M5.5a (v0.5.4): voss.help() + CLI + getting-started.md
 - M5.5b (v0.5.5): PyPI binary wheel published as `voss`
+- M5.x (v0.5.6): repo cleanup — publish/ in .gitignore, README install section, DESIGN.md 5.12 note
 
 ---
 
@@ -77,10 +78,11 @@
 
 ## Next steps (when ready)
 
-### M5.x follow-ups (optional)
-- Remove voss-prime-gaps project from PyPI
-- Update README to `pip install voss`
-- Remove publish/ build artifacts from git (add to .gitignore)
+### M5.x follow-ups (v0.5.6 — COMPLETED)
+- [DONE] Update README to `pip install voss` (root + library/README.md)
+- [DONE] Remove publish/ build artifacts from git (added to .gitignore)
+- [DONE] DESIGN.md 5.12 note: publish/ NOT tracked in git
+- [PENDING] Remove voss-prime-gaps project from PyPI (manual, not via API)
 
 ### M6 (future)
 - General numbers section (voss-numbers): phi, tau, sigma, mu, GCD/LCM, Fibonacci, factorial
@@ -112,7 +114,7 @@ voss/
 |  +-- docs/ - API + getting-started
 |-- paper/ - academic paper
 |-- scripts/ - benchmark.py + analysis
-|-- publish/ - PyPI publishing (temp)
+|-- publish/ - PyPI publishing (temp, NOT tracked in git)
 +-- .github/workflows/ - CI
 
 ---
