@@ -1,83 +1,82 @@
 # VOSS Library
 
-**GPU-accelerated prime gap library** (part of [VOSS](../)).
+**GPU-accelerated prime gap library** (part of VOSS).
 
 ## Status
 
-**v0.1.0** — M0 complete. Only `prime_count` is implemented.
+**v0.4.5** — M4 complete + performance fixes.
+
+Implemented: prime_count, Context, twins/cousin/sexy, in_range,
+nth, next_prime, prev_prime, statistics, chebyshev, large_gaps, export_csv.
 
 ## Requirements
 
-- NVIDIA GPU (Tier 1: A100 `sm_80`, T4 `sm_75`)
-- CUDA Toolkit 12.x
-- Python 3.9+ (for Python bindings)
+- NVIDIA GPU (Tier 1: A100, T4)
+- CUDA 12.x
+- Python 3.9+
 - CMake 3.22+
 
-## Build (C++)
+## Build
 
-```bash
-cd library
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
-```
+    cd library
+    cmake -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j
 
-Artifacts:
-- `build/libvoss_core.a` — static library
-- `build/libvoss.so` — shared library (for Python)
-- `build/test_prime_count` — C++ test binary
+## Quick Start (Python)
 
-## Build (Python, in-place)
+    import os, sys
+    os.environ['VOSS_LIBRARY_PATH'] = '/path/to/library/build/libvoss.so'
+    sys.path.insert(0, '/path/to/library/bindings/python')
 
-The Python bindings load `libvoss.so` at runtime. Set the path once:
+    import voss
 
-```python
-import os, sys
-os.environ['VOSS_LIBRARY_PATH'] = '/path/to/library/build/libvoss.so'
-sys.path.insert(0, '/path/to/library/bindings/python')
+    print(voss.primes.prime_count(10**9))   # 50847534
 
-import voss
-print(voss.primes.prime_count(10**9))  # 50847534
-```
+    with voss.primes.Context(10**9) as ctx:
+        print(ctx.prime_count())             # 50847534
+        print(ctx.twins())                   # 3424506
+        print(ctx.statistics().mean_gap)     # 19.6666
+        print(ctx.chebyshev().difference)    # +551
 
-## Run tests
+    print(voss.primes.in_range(10, 30))     # [11, 13, ..., 29]
+    print(voss.primes.nth(1000))            # 7919
+    print(voss.primes.next_prime(10**9))    # 1000000007
 
-**C++** (requires GPU):
+## Profiles
 
-```bash
-cd library/build
-ctest --output-on-failure
-```
+| Profile | Computes | Max N |
+|---------|----------|-------|
+| MINIMAL | prime_count only | 10^14 |
+| STANDARD | + histogram + stats + chebyshev + large_gaps | 10^11 (practical) |
+| FULL | same as STANDARD | 10^11 (practical) |
 
-**Python** (requires GPU):
+## Performance
 
-```bash
-pip install -r library/tests/requirements.txt
-pytest library/tests/test_primes.py -v
-```
+| N | voss | v10/v13 | ratio |
+|---|------|---------|-------|
+| 10^9  | 56 ms  | 52.8 ms | ~1.0x |
+| 10^10 | 530 ms | 744 ms  | 1.4x faster |
+| 10^11 | 5.36 s | 8.24 s  | 1.54x faster |
 
-## API (v0.1.0)
+## Tests
 
-### C ABI
+    # C++ (requires GPU)
+    cd library/build && ctest --output-on-failure
 
-```c
-#include <voss/voss.h>
-#include <voss/voss_primes.h>
+    # Python (requires GPU)
+    pip install -r library/tests/requirements.txt
+    pytest library/tests/test_primes.py -v
 
-uint64_t out;
-int rc = voss_primes_prime_count(1000000000ULL, &out);
-if (rc != VOSS_OK) {
-    fprintf(stderr, "%s\n", voss_get_last_error());
-}
-```
+    # Cross-check
+    python library/tests/verify_against_reference.py
 
-### Python
+    # Benchmark
+    python scripts/benchmark.py
 
-```python
-import voss
+    # CUDA sanitizer
+    compute-sanitizer --tool memcheck library/build/test_prime_count
 
-n = voss.primes.prime_count(10**9)  # 50847534
-```
+## See also
 
-## What's next
-
-M1: handle + profiles. See [DESIGN.md](../DESIGN.md) and [M0_PLAN.md](../M0_PLAN.md).
+- [../DESIGN.md](../DESIGN.md) — design decisions
+- [docs/api/](docs/api/) — Python & C API reference

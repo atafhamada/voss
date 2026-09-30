@@ -19,9 +19,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Install build tools (skip NVIDIA apt mirror)
         run: |
-          apt-get update -qq
+          # Remove NVIDIA CUDA apt sources to avoid mirror-sync failures.
+          # The CUDA image already contains nvcc; we only need cmake + build tools.
+          rm -f /etc/apt/sources.list.d/cuda*.list
+          rm -f /etc/apt/sources.list.d/nvidia*.list
+          rm -f /etc/apt/sources.list.d/libcublas*.list
+          rm -f /etc/apt/sources.list.d/libcufft*.list
+          rm -f /etc/apt/sources.list.d/libcurand*.list
+          rm -f /etc/apt/sources.list.d/libcusolver*.list
+          rm -f /etc/apt/sources.list.d/libcusparse*.list
+          rm -f /etc/apt/sources.list.d/libnpp*.list
+          rm -f /etc/apt/sources.list.d/libnvjitlink*.list
+          apt-get update -qq || true
           apt-get install -y -qq cmake build-essential python3 python3-pip
 
       - name: Show toolchain versions
@@ -45,3 +56,21 @@ jobs:
           test -f build/libvoss.so
           test -f build/test_prime_count
           echo "All artifacts present."
+
+      - name: List C ABI symbols
+        working-directory: library
+        run: nm -D build/libvoss.so | grep ' T voss_' | sort
+
+  python-lint:
+    name: Python lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile check
+        run: |
+          python -m py_compile library/bindings/python/voss/*.py
+          python -m py_compile library/tests/*.py
+          python -m py_compile scripts/*.py
