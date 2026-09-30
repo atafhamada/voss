@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use VOSS in your research, please cite it as below."
+title: "VOSS: Vectorized Odd Segmented Sieve"
+abstract: "GPU-accelerated prime gap library (primes section)."
+type: software
+authors:
+  - family-names: Hamada
+    given-names: Ataf
+version: 0.5.6
+date-released: 2026-09-30
+license: BUSL-1.1
+repository-code: "https://github.com/atafhamada/voss"
+url: "https://pypi.org/project/voss/"
+keywords:
+  - primes
+  - prime gaps
+  - CUDA
+  - GPU
+  - number theory
