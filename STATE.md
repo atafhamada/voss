@@ -1,8 +1,8 @@
 # VOSS — Project State
 
 **Last updated**: 2026-09-30
-**Current milestone**: M2 (in progress)
-**Last stable release**: v0.2.0 (M1)
+**Current milestone**: M3 complete, M4 not started
+**Last stable release**: v0.4.0 (M3)
 
 ---
 
@@ -117,9 +117,9 @@ Exhaustive N = 2..100 tested; all values match sympy reference.
 
 ## Milestones remaining
 
-- M2: twins, cousin, sexy (in progress)
-- M3: range, nth, next/prev
-- M4: statistics + CSV + large gaps
+- M2: twins, cousin, sexy  [DONE, v0.3.1]
+- M3: range, nth, next/prev  [DONE, v0.4.0]
+- M4: statistics + CSV + large gaps  [NEXT]
 - M5.0: comprehensive tests + CI + docs -> v0.5.0
 - M5.1: is_prime + Sophie Germain
 - M5.2: Factorization
