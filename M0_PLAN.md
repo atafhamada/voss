@@ -1,3 +1,10 @@
+# M0_PLAN.md — Content
+
+**انسخ كل ما يلي والصقه في GitHub كملف `M0_PLAN.md`**
+
+---
+
+```markdown
 # M0 — Detailed Plan
 
 **Goal**: `voss_primes_prime_count(N)` working end-to-end.
@@ -8,14 +15,13 @@
 
 ## Environment Notes
 
-**[Fact from your setup]**:
 - Working environment: Google Colab
 - GPU: A100 (Tier 1)
 - CUDA available: yes
-- Source code reference: `voss_w30_v7.cu` on GitHub
+- Source code reference: `voss_w30_v7.cu` (in `src/`)
 - Target repo: `github.com/atafhamada/voss`
 
-**[Decision]**: All work happens in a fresh Colab notebook, pushed to GitHub via browser (upload) or Colab's git integration.
+All work happens in a fresh Colab notebook, pushed to GitHub via browser (upload) or Colab's git integration.
 
 ---
 
@@ -24,6 +30,7 @@
 ### Day 1 — Directory Skeleton
 
 Create locally (in Colab), then push:
+
 ```
 library/
 ├── include/voss/
@@ -58,7 +65,7 @@ library/
 
 ### Day 3 — Copy Kernels from v7-golden
 
-**[Fact from `voss_w30_v7.cu`]**:
+From `voss_w30_v7.cu`:
 - `sieve_w30_seg_kernel` (lines ~30-52)
 - `extract_w30_seg_kernel` (lines ~54-78)
 - `generate_base_primes` (lines ~30-50)
@@ -94,7 +101,7 @@ library/
 
 ### Day 6-7 — Implement `voss_primes_prime_count`
 
-**From `voss_w30_v7.cu`**: extract the `main()` loop logic that:
+From `voss_w30_v7.cu`: extract the `main()` loop logic that:
 1. Generates base primes
 2. Loops over segments
 3. Sieves each segment
@@ -203,7 +210,7 @@ Using Catch2 or GoogleTest:
 - Plus: verify against `sympy.primepi` for small N
 - Plus: verify against values from `results/` files
 
-**Verification sources** (from `DESIGN.md` 1.5):
+**Verification sources**:
 - sympy (small N)
 - primesieve (medium N)
 - OEIS A006880 (via stored values)
@@ -244,7 +251,6 @@ Add `library/docs/api/README.md`:
 
 ## Decision Gates During M0
 
-**From DESIGN.md 6.11**:
 - **G0**: after Day 7 → π(10⁹) correct locally
 - **G5** (early version): after Day 21 → CI + install from GitHub
 
@@ -255,14 +261,15 @@ Add `library/docs/api/README.md`:
 ## Deliverables Summary
 
 **End of Week 1**: `libvoss_core.a` compiles, `prime_count(10**9)` returns 50,847,534 in C++.
+
 **End of Week 2**: `import voss; voss.primes.prime_count(10**9)` works in Python.
+
 **End of Week 3**: tagged `v0.1.0`, installable via `pip install` from GitHub, CI green.
 
 ---
 
 ## What M0 Does NOT Include
 
-**From DESIGN.md 6.1**:
 - No handle (`voss_primes_ctx_*`)
 - No profiles
 - No twins/cousin/sexy
@@ -272,5 +279,23 @@ Add `library/docs/api/README.md`:
 - No thread safety
 - No error recovery beyond basics
 - No automatic segment size (uses fixed `SEG_NUM` from v7)
+
+---
+
+## Notes on Colab Constraints
+
+- **Session limit**: Colab free tier ~12 hours max, but GPU may disconnect earlier
+- **Working strategy**: commit often — after each day's deliverable
+- **Persistence**: use `git push` after every meaningful change
+- **Backup**: clone repo into Colab at start of each session: `!git clone https://github.com/atafhamada/voss.git`
+
+---
+
+## References
+
+- `DESIGN.md` — official design document
+- `src/voss_w30_v7.cu` — reference implementation (do not modify)
+- `results/*.txt` — verification data (10⁹ to 10¹³)
+```
 
 ---
