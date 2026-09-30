@@ -29,7 +29,8 @@ set(CMAKE_CUDA_ARCHITECTURES "${VOSS_CUDA_ARCHS}"
 # ============================================================
 # Library: libvoss_core.a
 # ============================================================
-add_library(voss_core STATIC
+# Source list shared between static and shared libraries
+set(VOSS_SOURCES
     src/core/error.cpp
     src/core/cuda_context.cpp
     src/core/memory.cpp
@@ -38,17 +39,35 @@ add_library(voss_core STATIC
     src/primes/extract.cu
 )
 
+# Static library
+add_library(voss_core STATIC ${VOSS_SOURCES})
 target_include_directories(voss_core
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-
 target_compile_options(voss_core PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
 )
-
 target_compile_options(voss_core PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>
+)
+
+# Shared library (for Python ctypes)
+add_library(voss_shared SHARED ${VOSS_SOURCES})
+set_target_properties(voss_shared PROPERTIES
+    OUTPUT_NAME "voss"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+target_include_directories(voss_shared
+    PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_options(voss_shared PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
+    $<$<COMPILE_LANGUAGE:CXX>:-fPIC -Wall -Wextra>
+)
+set_target_properties(voss_shared PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
 )
 
 # ============================================================
