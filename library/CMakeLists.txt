@@ -50,6 +50,7 @@ set(VOSS_SOURCES
     src/primes/factorize.cpp
     src/primes/mersenne_fermat.cpp
     src/primes/goldbach.cpp
+    src/primes/goldbach_upto.cu
 )
 
 # Static library

@@ -130,18 +130,17 @@ def test_legendre_upto(N):
 
 
 def test_goldbach_upto(N):
-    """Test Goldbach's conjecture up to N.
+    """Test Goldbach's conjecture up to N (GPU-accelerated).
 
     Statement: every even integer n >= 4 is the sum of two primes.
 
-    Empirical test: for each even n in [4, N], check
-    goldbach_count(n) > 0.
+    Empirical test: checks all even n in [4, N] in parallel on GPU
+    via voss_primes_goldbach_test_upto (M6).
 
     Parameters
     ----------
     N : int
-        Upper bound (4 <= N <= 10^6).
-        Limited by CPU-based goldbach_count (see STATE.md).
+        Upper bound (4 <= N <= 10^8).
 
     Returns
     -------
@@ -154,17 +153,28 @@ def test_goldbach_upto(N):
     Examples
     --------
     >>> import voss
-    >>> r = voss.conjectures.test_goldbach_upto(100)
+    >>> r = voss.conjectures.test_goldbach_upto(10**6)
     >>> r["status"]
     'no_counterexample_found_upto_N'
     """
-    _validate_N(N, min_N=4, max_N=10**6)
+    _validate_N(N, min_N=4, max_N=10**8)
+    import ctypes
+    from . import _capi
+    arr = ctypes.POINTER(ctypes.c_uint64)()
+    cnt = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_goldbach_test_upto(
+        ctypes.c_uint64(N),
+        ctypes.byref(arr),
+        ctypes.byref(cnt),
+        ctypes.c_uint64(10),
+    )
+    _capi._check(rc, {})
     counterexamples = []
-    for n in range(4, N + 1, 2):
-        if primes.goldbach_count(n) == 0:
-            counterexamples.append(n)
-            if len(counterexamples) >= 10:
-                break
+    if arr and cnt.value > 0:
+        try:
+            counterexamples = [int(arr[i]) for i in range(cnt.value)]
+        finally:
+            _capi._lib.voss_free(arr)
     return _make_result("goldbach", N, counterexamples)
 
 

@@ -201,8 +201,9 @@ def test_goldbach_min_N_error():
 
 def test_goldbach_max_N_error():
     import voss
+    # max_N is now 10^8 (GPU path); 10^9 exceeds it
     with pytest.raises(voss.VossError):
-        voss.conjectures.test_goldbach_upto(10**7)
+        voss.conjectures.test_goldbach_upto(10**9)
 
 
 def test_chebyshev_bias_min_N_error():
