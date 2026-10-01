@@ -1,8 +1,8 @@
 # VOSS - Project State
 
-**Last updated**: 2026-10-01 (sophie_germain GPU)
-**Current milestone**: M5.1-GPU complete (sophie_germain GPU, N<=10^9)
-**Latest release**: v0.8.0 (published on PyPI as `voss`)
+**Last updated**: 2026-10-01 (voss-numbers M6.2 complete)
+**Current milestone**: M6.2 complete (voss-numbers — 8 functions, CPU)
+**Latest release**: v0.9.0 (PyPI upload pending)
 
 ---
 
@@ -30,7 +30,7 @@
 - **GitHub**: https://github.com/atafhamada/voss
 - **PyPI (main)**: https://pypi.org/project/voss/
 - **PyPI (deprecated)**: `voss-prime-gaps` — DELETED from PyPI (404)
-- **Latest version**: v0.8.0
+- **Latest version**: v0.9.0
 
 ---
 
@@ -62,7 +62,7 @@
 - CUDA sanitizer: 0 errors on full pipeline
 - Cross-check vs reference.py: all values match at 10^4..10^8
 - Performance: 24-100x faster on small N (v0.4.5)
-- PyPI: voss 0.8.0 live (binary wheel, Linux x86_64)
+- PyPI: voss 0.9.0 (PyPI upload pending)
 
 ### Known limitations
 - sophie_germain: N <= 10^9 (GPU, ~2.9s on A100-40GB)
@@ -117,10 +117,26 @@
 - [DONE] DESIGN.md 5.12 note: publish/ NOT tracked in git
 - [DONE] Remove voss-prime-gaps project from PyPI (deleted manually; now 404)
 
-### M6 (future)
-- General numbers section (voss-numbers): phi, tau, sigma, mu, GCD/LCM, Fibonacci, factorial
-- Math section (voss-math): linear algebra, optimization
-- Both deferred until v1.0.0
+### M6.2 (v0.9.0 — COMPLETED)
+- voss-numbers section: 8 functions (phi, tau, sigma, mu, gcd, lcm, fibonacci, factorial)
+- New module: library/src/numbers/ + header voss/voss_numbers.h + package voss.numbers
+- All single-number, CPU. Range/GPU variants deferred to M6.3.
+- Reuses voss_primes_factorize (M5.2) via internal factor_exponents helper
+- fibonacci: fast doubling, n <= 93. factorial: n <= 20. lcm: overflow-checked.
+- Verified: 36/36 pytest pass; cross-check vs sympy for all 8 functions
+- Benchmark (vs sympy, fresh timing set):
+  phi 12.4x, tau 6.7x, sigma 10.9x, mu 12.9x  (n <= 1e9)
+  phi 15.5x, tau 7.0x, sigma 6.2x, mu 7.0x    (1e9..1e12)
+  gcd/lcm/fibonacci/factorial: ~0.3-0.6x — bounded by ctypes overhead
+  (microbench: ctypes alone = 1.16 us/call; algorithms competitive)
+- PyPI: voss 0.9.0 (this release)
+
+### M6.3 (future)
+- Range/GPU variants for voss-numbers (sieve-based phi[], etc.)
+- Design + benchmark required before implementation (per DESIGN.md 6.15)
+
+### voss-math (future)
+- Math section (linear algebra, optimization) — after v1.0.0
 
 ### v1.0.0 (after dogfooding)
 - 6 months of use -> v1.0.0 release
@@ -223,3 +239,19 @@ Focus: sophie_germain GPU migration (M5.1-GPU) -> v0.8.0
 - N limit: 5e7 -> 1e9
 - Memory: device allocation ~650MB; A100-40GB safe
 - Pending: STATE.md commit, tag v0.8.0, wheel build + PyPI upload
+
+---
+
+## Session (2026-10-01, continued)
+
+Focus: voss-numbers M6.2 (phi, tau, sigma, mu, gcd, lcm, fibonacci, factorial)
+
+- New module: library/src/numbers/ (8 .cpp files + 2 helpers)
+- New C ABI: voss_numbers_* (voss/voss_numbers.h)
+- Python: voss.numbers (8 functions)
+- DESIGN.md 6.15: M6.2 scope added (commit bf61dde)
+- Commits: bf61dde (DESIGN), c07f8ac (M6.2a phi), 66878b6 (M6.2b+c)
+- 36/36 pytest pass; sympy cross-check for all 8
+- Benchmark: phi/tau/sigma/mu 6-15x faster than sympy; gcd/lcm/fib/fact
+  competitive on algorithm, slower through ctypes (1.16 us/call baseline)
+- Pending: tag v0.9.0, wheel build + PyPI upload
