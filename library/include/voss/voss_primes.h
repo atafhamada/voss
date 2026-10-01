@@ -39,6 +39,9 @@ int voss_primes_ctx_sexy(voss_primes_ctx* ctx, uint64_t* out);    // gap == 6
 // Count p <= N such that both p and 2*p+1 are prime.
 // Requires STANDARD or FULL profile.
 int voss_primes_ctx_sophie_germain(voss_primes_ctx* ctx, uint64_t* out);
+// GPU variant: N up to 10^9. Same semantics: writes count to *out
+// and caches in ctx->cached_sophie. Requires STANDARD or FULL profile.
+int voss_primes_ctx_sophie_germain_upto(voss_primes_ctx* ctx, uint64_t* out);
 
 // ============================================================
 // Statistics (M4)

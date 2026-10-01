@@ -754,8 +754,16 @@ extern "C" int voss_primes_ctx_statistics(voss_primes_ctx* ctx,
     return VOSS_OK;
 }
 
-extern "C" int voss_primes_ctx_sophie_germain(voss_primes_ctx* ctx,
-                                              uint64_t* out) {
+// ---- GPU Sophie Germain ----
+// Kernel is defined in sophie_germain_upto.cu (extern "C" __global__).
+extern "C" __global__ void sophie_germain_kernel(
+    const uint64_t* __restrict__ bm,
+    const uint64_t* __restrict__ primes,
+    uint64_t np,
+    unsigned long long* __restrict__ out_count);
+
+extern "C" int voss_primes_ctx_sophie_germain_upto(voss_primes_ctx* ctx,
+                                                    uint64_t* out) {
     if (ctx == nullptr) {
         voss_set_last_error("ctx is null");
         return VOSS_ERR_INVALID_ARG;
@@ -769,52 +777,120 @@ extern "C" int voss_primes_ctx_sophie_germain(voss_primes_ctx* ctx,
                             "use STANDARD or FULL");
         return VOSS_ERR_INVALID_ARG;
     }
-
     if (ctx->has_sophie) {
         *out = ctx->cached_sophie;
         return VOSS_OK;
     }
 
-    // Sophie Germain: count p where p and 2*p+1 are both prime.
-    // We have the list of all primes up to N from the histogram pipeline.
-    // Approach: iterate prime positions to reconstruct prime values, then
-    // apply Miller-Rabin on 2*p+1.
-    // For performance: use the histogram-cached prime list if we had it,
-    // but we don't store the full list. Simpler: recompute primes from
-    // the histogram is not possible directly.
-    //
-    // Pragmatic approach: for now, use a CPU sieve up to N and count.
-    // For N up to 10^7 this is fast enough. For larger N we'd need GPU
-    // reconstruction of primes (planned for later M5.x).
-    try {
-        if (ctx->N > 50000000ULL) {
-            voss_set_last_error("sophie_germain currently supports N <= 5e7");
-            return VOSS_ERR_OUT_OF_RANGE;
-        }
-        uint64_t N = ctx->N;
-        std::vector<bool> is_prime(N + 1, true);
-        if (N >= 0) is_prime[0] = false;
-        if (N >= 1) is_prime[1] = false;
-        for (uint64_t i = 2; i * i <= N; i++) {
-            if (is_prime[i]) {
-                for (uint64_t j = i * i; j <= N; j += i) is_prime[j] = false;
-            }
-        }
-        uint64_t count = 0;
-        for (uint64_t p = 2; p <= N; p++) {
-            if (!is_prime[p]) continue;
-            uint64_t q = 2 * p + 1;
-            if (q > N && voss_is_prime_mr(q)) count++;
-            else if (q <= N && is_prime[q]) count++;
-        }
-        ctx->cached_sophie = count;
+    uint64_t N = ctx->N;
+    if (N < 2) {
+        ctx->cached_sophie = 0;
         ctx->has_sophie = true;
-        *out = count;
+        *out = 0;
         return VOSS_OK;
-    } catch (const std::exception& e) {
-        voss_set_last_error(e.what());
-        return VOSS_ERR_INTERNAL;
     }
+
+    uint64_t M = 2 * N + 1;
+
+    // pi(2N+1) upper bound. For N <= 10^9, pi(2e9) ~ 98.2M.
+    // Cap at 110M for headroom.
+    uint64_t max_primes = (M / 8) + 1000;
+    if (max_primes > 110000000ULL) max_primes = 110000000ULL;
+
+    uint64_t* host_primes = nullptr;
+    uint64_t num_primes = 0;
+    int rc = voss_primes_in_range_with_limit(2, M, max_primes,
+                                              &host_primes, &num_primes);
+    if (rc != VOSS_OK) return rc;
+
+    struct PGuard { uint64_t* p; ~PGuard(){ if(p) free(p); } } pg{host_primes};
+
+    // Bitmap up to M = 2N+1.
+    uint64_t words = (M + 64) / 64;
+    std::vector<uint64_t> bm(words, 0);
+    // Seed 2, 3, 5 manually (in_range's W30 wheel starts at 7).
+    if (M >= 2) bm[2 >> 6] |= (1ULL << (2 & 63));
+    if (M >= 3) bm[3 >> 6] |= (1ULL << (3 & 63));
+    if (M >= 5) bm[5 >> 6] |= (1ULL << (5 & 63));
+    for (uint64_t i = 0; i < num_primes; i++) {
+        uint64_t p = host_primes[i];
+        if (p > M) continue;
+        bm[p >> 6] |= (1ULL << (p & 63));
+    }
+
+    // Primes for kernel: p in [2, N].
+    std::vector<uint64_t> primes_vec;
+    if (N >= 2) primes_vec.push_back(2);
+    if (N >= 3) primes_vec.push_back(3);
+    if (N >= 5) primes_vec.push_back(5);
+    for (uint64_t i = 0; i < num_primes; i++) {
+        uint64_t p = host_primes[i];
+        if (p > N) break;   // sorted ascending
+        if (p > 5) primes_vec.push_back(p);
+    }
+    uint64_t total_primes = (uint64_t)primes_vec.size();
+
+    // Free host_primes before GPU phase (reduce peak host RAM).
+    free(host_primes);
+    pg.p = nullptr;
+
+    uint64_t* d_bm = nullptr;
+    uint64_t* d_pr = nullptr;
+    unsigned long long* d_cc = nullptr;
+    int rc2 = VOSS_OK;
+    try {
+        cudaError_t e;
+        e = cudaMalloc(&d_bm, words * sizeof(uint64_t));
+        if (e) throw std::runtime_error("cudaMalloc bm");
+        if (total_primes > 0) {
+            e = cudaMalloc(&d_pr, total_primes * sizeof(uint64_t));
+            if (e) throw std::runtime_error("cudaMalloc primes");
+        }
+        e = cudaMalloc(&d_cc, sizeof(unsigned long long));
+        if (e) throw std::runtime_error("cudaMalloc cc");
+        e = cudaMemset(d_cc, 0, sizeof(unsigned long long));
+        if (e) throw std::runtime_error("cudaMemset");
+        e = cudaMemcpy(d_bm, bm.data(), words * sizeof(uint64_t),
+                       cudaMemcpyHostToDevice);
+        if (e) throw std::runtime_error("memcpy bm");
+        if (total_primes > 0) {
+            e = cudaMemcpy(d_pr, primes_vec.data(),
+                           total_primes * sizeof(uint64_t),
+                           cudaMemcpyHostToDevice);
+            if (e) throw std::runtime_error("memcpy primes");
+        }
+
+        int threads = 256;
+        int blocks = (int)((total_primes + threads - 1) / threads);
+        if (blocks > 0)
+            sophie_germain_kernel<<<blocks, threads>>>(d_bm, d_pr,
+                                                        total_primes, d_cc);
+        e = cudaDeviceSynchronize();
+        if (e) throw std::runtime_error(std::string("kernel: ") +
+                                        cudaGetErrorString(e));
+
+        unsigned long long hcc = 0;
+        e = cudaMemcpy(&hcc, d_cc, sizeof(unsigned long long),
+                       cudaMemcpyDeviceToHost);
+        if (e) throw std::runtime_error("memcpy count back");
+
+        ctx->cached_sophie = (uint64_t)hcc;
+        ctx->has_sophie = true;
+        *out = (uint64_t)hcc;
+    } catch (const std::exception& ex) {
+        voss_set_last_error(ex.what());
+        rc2 = VOSS_ERR_INTERNAL;
+    }
+    if (d_bm) cudaFree(d_bm);
+    if (d_pr) cudaFree(d_pr);
+    if (d_cc) cudaFree(d_cc);
+    return rc2;
+}
+
+extern "C" int voss_primes_ctx_sophie_germain(voss_primes_ctx* ctx,
+                                              uint64_t* out) {
+    // Stable C ABI symbol: delegates to GPU variant.
+    return voss_primes_ctx_sophie_germain_upto(ctx, out);
 }
 
 extern "C" int voss_primes_ctx_large_gaps_count(voss_primes_ctx* ctx,
