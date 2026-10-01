@@ -2,7 +2,7 @@
 
 GPU-accelerated prime gap library.
 
-**Latest release**: v0.5.6
+**Latest release**: v0.6.0
 
 ## Quick links
 
@@ -60,10 +60,11 @@ pip install voss
 | M5.4 | v0.5.4 | Goldbach partitions |
 | M5.5 | v0.5.5 | help() + CLI + binary wheel on PyPI |
 | M5.x | v0.5.6 | repo cleanup after PyPI release |
+| M6 | v0.6.0 | `voss.conjectures` (test_* + iter_*) + GPU goldbach up to 10^9 |
 
 ## Verified
 
-- 82 pytest tests pass
+- 112 pytest tests pass (82 + 30 conjecture tests)
 - CUDA sanitizer: 0 errors
 - Cross-checked against sympy at every scale
 - Matches v7-golden at 10^9..10^12

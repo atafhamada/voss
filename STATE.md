@@ -1,8 +1,8 @@
 # VOSS - Project State
 
 **Last updated**: 2026-09-30 (end of long session)
-**Current milestone**: M5.x complete (repo cleanup after PyPI release)
-**Latest release**: v0.5.6 (published on PyPI as `voss`)
+**Current milestone**: M6 started (conjecture testing + GPU goldbach)
+**Latest release**: v0.6.0 (published on PyPI as `voss`)
 
 ---
 
@@ -30,7 +30,7 @@
 - **GitHub**: https://github.com/atafhamada/voss
 - **PyPI (main)**: https://pypi.org/project/voss/
 - **PyPI (deprecated)**: `voss-prime-gaps` — DELETED from PyPI (404)
-- **Latest version**: v0.5.6
+- **Latest version**: v0.6.0
 
 ---
 
@@ -82,6 +82,13 @@
 ---
 
 ## Next steps (when ready)
+
+### M6 (v0.6.0 — COMPLETED)
+- `voss.conjectures` module: 4 test_* + 4 iter_* functions
+- GPU kernel `goldbach_upto.cu`: `test_goldbach_upto` up to 10^9
+- Verified: goldbach(10^9) = 2.2s on A100, ce=0
+- 30/30 tests pass in test_conjectures.py
+- Naming: `test_*_upto` (empirical, not proof) per DESIGN.md 6.14
 
 ### M5.x follow-ups (v0.5.6 — COMPLETED)
 - [DONE] Update README to `pip install voss` (root + library/README.md)
