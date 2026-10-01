@@ -1,8 +1,8 @@
 # VOSS - Project State
 
-**Last updated**: 2026-09-30 (end of long session)
-**Current milestone**: M6.1 complete (Context progress callback)
-**Latest release**: v0.7.0 (published on PyPI as `voss`)
+**Last updated**: 2026-10-01 (sophie_germain GPU)
+**Current milestone**: M5.1-GPU complete (sophie_germain GPU, N<=10^9)
+**Latest release**: v0.8.0 (published on PyPI as `voss`)
 
 ---
 
@@ -30,7 +30,7 @@
 - **GitHub**: https://github.com/atafhamada/voss
 - **PyPI (main)**: https://pypi.org/project/voss/
 - **PyPI (deprecated)**: `voss-prime-gaps` — DELETED from PyPI (404)
-- **Latest version**: v0.7.0
+- **Latest version**: v0.8.0
 
 ---
 
@@ -62,11 +62,11 @@
 - CUDA sanitizer: 0 errors on full pipeline
 - Cross-check vs reference.py: all values match at 10^4..10^8
 - Performance: 24-100x faster on small N (v0.4.5)
-- PyPI: voss 0.5.6 live (binary wheel, Linux x86_64)
+- PyPI: voss 0.8.0 live (binary wheel, Linux x86_64)
 
 ### Known limitations
-- sophie_germain: N <= 5e7 (CPU sieve)
-- goldbach: n <= 10^8 (CPU)
+- sophie_germain: N <= 10^9 (GPU, ~2.9s on A100-40GB)
+- goldbach: n <= 10^9 (GPU, ~2.2s on A100)
 - is_mersenne_prime: p <= 63
 - is_fermat_prime: n <= 5
 - STANDARD/FULL profile: practical N limit 10^11 on Colab A100
@@ -82,6 +82,16 @@
 ---
 
 ## Next steps (when ready)
+
+### M5.1-GPU (v0.8.0 — COMPLETED)
+- sophie_germain migrated to GPU: N <= 5e7 (CPU sieve) -> 10^9 (GPU)
+- New kernel `sophie_germain_upto.cu` (one thread per prime, atomic count)
+- New C ABI: `voss_primes_ctx_sophie_germain_upto(ctx, out)` (count only, same semantics)
+- Existing `voss_primes_ctx_sophie_germain` now delegates to GPU variant
+- Verified N=10^9: 3308859 — matches independent numpy CPU sieve
+  (also verified N=100 -> 10, 10^6 -> 7746, 10^8 -> 423140)
+- Performance: 2.87s (GPU) vs ~26s (CPU, numpy) at 10^9
+- PyPI: voss 0.8.0 (this release)
 
 ### M6.1 (v0.7.0 — COMPLETED)
 - Context.set_progress(callback) — C ABI + Python wrapper
@@ -148,6 +158,7 @@ voss/
 - library/src/primes/gaps.cu     - gaps_w30_seg_kernel
 - library/src/primes/chebyshev.cu - mod4_count_kernel
 - library/src/primes/context.cu  - Context implementation
+- library/src/primes/sophie_germain_upto.cu - sophie_germain_kernel
 - library/bindings/python/voss/primes.py - user API
 - library/bindings/python/voss/_capi.py  - ctypes loader
 
@@ -196,3 +207,17 @@ Major milestones:
 - Published on PyPI
 - CLI + help system
 - User-facing documentation
+
+---
+
+## Session (2026-10-01)
+
+Focus: sophie_germain GPU migration (M5.1-GPU) -> v0.8.0
+
+- New file: library/src/primes/sophie_germain_upto.cu (kernel only)
+- Modified: context.cu (host wrapper + delegate), voss_primes.h (decl), CMakeLists.txt
+- Commit: 2d44799 (feat(sophie): GPU migration — N up to 10^9)
+- Verified: 10^9 -> 3308859 (GPU, 2.87s), independent CPU numpy agrees
+- N limit: 5e7 -> 1e9
+- Memory: device allocation ~650MB; A100-40GB safe
+- Pending: STATE.md commit, tag v0.8.0, wheel build + PyPI upload
