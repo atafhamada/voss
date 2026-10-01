@@ -2,12 +2,13 @@
 
 from . import primes
 from . import conjectures
+from . import numbers
 from .primes import Context, Statistics, ChebyshevBias, LargeGap
 from .exceptions import VossError
 
 __version__ = "0.7.0"
 
-__all__ = ["primes", "conjectures", "Context", "Statistics",
+__all__ = ["primes", "conjectures", "numbers", "Context", "Statistics",
            "ChebyshevBias", "LargeGap", "VossError", "help"]
 
 

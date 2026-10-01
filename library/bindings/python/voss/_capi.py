@@ -260,3 +260,9 @@ try:
 except AttributeError as e:
     print("warning: set_progress symbol not found:", e)
 
+# === M6.2a: numbers section ===
+_lib.voss_numbers_phi.argtypes = [
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_numbers_phi.restype = ctypes.c_int

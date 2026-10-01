@@ -51,6 +51,7 @@ set(VOSS_SOURCES
     src/primes/mersenne_fermat.cpp
     src/primes/goldbach.cpp
     src/primes/goldbach_upto.cu
+    src/numbers/phi.cpp
     src/primes/sophie_germain_upto.cu
 )
 
