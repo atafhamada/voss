@@ -1,8 +1,8 @@
 # VOSS - Project State
 
 **Last updated**: 2026-09-30 (end of long session)
-**Current milestone**: M6 started (conjecture testing + GPU goldbach)
-**Latest release**: v0.6.1 (published on PyPI as `voss`)
+**Current milestone**: M6.1 complete (Context progress callback)
+**Latest release**: v0.7.0 (published on PyPI as `voss`)
 
 ---
 
@@ -30,7 +30,7 @@
 - **GitHub**: https://github.com/atafhamada/voss
 - **PyPI (main)**: https://pypi.org/project/voss/
 - **PyPI (deprecated)**: `voss-prime-gaps` — DELETED from PyPI (404)
-- **Latest version**: v0.6.1
+- **Latest version**: v0.7.0
 
 ---
 
@@ -82,6 +82,15 @@
 ---
 
 ## Next steps (when ready)
+
+### M6.1 (v0.7.0 — COMPLETED)
+- Context.set_progress(callback) — C ABI + Python wrapper
+- C API: `voss_primes_ctx_set_progress(ctx, cb, user)`
+- Callback called after each internal segment
+- Verified: 200 callbacks for N=10^13 (A100-40GB, 200 segments)
+- pi(10^13) = 346,065,536,839 — matches v7 exactly
+- Fixed: __version__ was stuck at 0.5.6 (now 0.7.0)
+- PyPI: voss 0.7.0 published
 
 ### M6 (v0.6.0 — COMPLETED)
 - `voss.conjectures` module: 4 test_* + 4 iter_* functions

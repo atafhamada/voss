@@ -2,7 +2,7 @@
 
 GPU-accelerated prime gap library.
 
-**Latest release**: v0.6.0
+**Latest release**: v0.7.0
 
 ## Quick links
 
@@ -61,6 +61,7 @@ pip install voss
 | M5.5 | v0.5.5 | help() + CLI + binary wheel on PyPI |
 | M5.x | v0.5.6 | repo cleanup after PyPI release |
 | M6 | v0.6.0 | `voss.conjectures` (test_* + iter_*) + GPU goldbach up to 10^9 |
+| M6.1 | v0.7.0 | `Context.set_progress(callback)` for live progress |
 
 ## Verified
 
