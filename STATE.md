@@ -2,7 +2,7 @@
 
 **Last updated**: 2026-10-01 (voss-numbers M6.2 complete)
 **Current milestone**: M6.2 complete (voss-numbers — 8 functions, CPU)
-**Latest release**: v0.9.0 (PyPI upload pending)
+**Latest release**: v0.9.0 (published on PyPI as `voss`)
 
 ---
 
@@ -62,7 +62,7 @@
 - CUDA sanitizer: 0 errors on full pipeline
 - Cross-check vs reference.py: all values match at 10^4..10^8
 - Performance: 24-100x faster on small N (v0.4.5)
-- PyPI: voss 0.9.0 (PyPI upload pending)
+- PyPI: voss 0.9.0 live (binary wheel, Linux x86_64)
 
 ### Known limitations
 - sophie_germain: N <= 10^9 (GPU, ~2.9s on A100-40GB)
