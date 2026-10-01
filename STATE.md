@@ -73,6 +73,11 @@
 - MINIMAL profile: up to 10^14
 - Thread safety: one Context per thread
 - Windows/macOS: not supported (manylinux wheel only)
+- prime_count at 10^12 (measured 2026-09-30, Colab A100):
+  VOSS minimal 55.6s / standard 62.3s / sympy 29.3s.
+  Root cause: VOSS uses segmented sieve O(N log log N);
+  sympy uses Meissel-Lehmer O(N^(2/3)).
+  VOSS's edge is gap computation, not single-N prime_count at large N.
 
 ---
 
