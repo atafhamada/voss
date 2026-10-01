@@ -2,7 +2,7 @@
 
 **Last updated**: 2026-09-30 (end of long session)
 **Current milestone**: M6 started (conjecture testing + GPU goldbach)
-**Latest release**: v0.6.0 (published on PyPI as `voss`)
+**Latest release**: v0.6.1 (published on PyPI as `voss`)
 
 ---
 
@@ -30,7 +30,7 @@
 - **GitHub**: https://github.com/atafhamada/voss
 - **PyPI (main)**: https://pypi.org/project/voss/
 - **PyPI (deprecated)**: `voss-prime-gaps` — DELETED from PyPI (404)
-- **Latest version**: v0.6.0
+- **Latest version**: v0.6.1
 
 ---
 
