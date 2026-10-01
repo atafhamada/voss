@@ -266,3 +266,47 @@ _lib.voss_numbers_phi.argtypes = [
     ctypes.POINTER(ctypes.c_uint64),
 ]
 _lib.voss_numbers_phi.restype = ctypes.c_int
+
+_lib.voss_numbers_tau.argtypes = [
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_numbers_tau.restype = ctypes.c_int
+
+_lib.voss_numbers_sigma.argtypes = [
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_numbers_sigma.restype = ctypes.c_int
+
+_lib.voss_numbers_mu.argtypes = [
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_int),
+]
+_lib.voss_numbers_mu.restype = ctypes.c_int
+
+_lib.voss_numbers_gcd.argtypes = [
+    ctypes.c_uint64,
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_numbers_gcd.restype = ctypes.c_int
+
+_lib.voss_numbers_lcm.argtypes = [
+    ctypes.c_uint64,
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_numbers_lcm.restype = ctypes.c_int
+
+_lib.voss_numbers_fibonacci.argtypes = [
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_numbers_fibonacci.restype = ctypes.c_int
+
+_lib.voss_numbers_factorial.argtypes = [
+    ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.voss_numbers_factorial.restype = ctypes.c_int

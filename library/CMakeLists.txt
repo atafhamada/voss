@@ -52,6 +52,13 @@ set(VOSS_SOURCES
     src/primes/goldbach.cpp
     src/primes/goldbach_upto.cu
     src/numbers/phi.cpp
+    src/numbers/tau.cpp
+    src/numbers/sigma.cpp
+    src/numbers/mu.cpp
+    src/numbers/gcd.cpp
+    src/numbers/lcm.cpp
+    src/numbers/fibonacci.cpp
+    src/numbers/factorial.cpp
     src/primes/sophie_germain_upto.cu
 )
 
