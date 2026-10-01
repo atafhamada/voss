@@ -73,9 +73,13 @@
 - Fermat primes → M5.3
 - Goldbach partitions → M5.4
 
+**[Decision]** — planned for M6.x (numbers section):
+
+- General numbers section (voss-numbers) → M6.2
+  - Scope and function list finalized at v0.9.0.
+
 **[Decision]** — deferred to v2.0+:
 
-- General numbers section → later
 - Mathematics section → later
 - ML → later
 - Cloud API → later
@@ -783,7 +787,9 @@ assert voss.primes.prev(10**9) == 999_999_937
 
 - After v0.5.0: 6 months dogfooding
 - After 6 months: v1.0.0
-- After 1 year: begin general numbers section
+- M6.2 (v0.9.0): voss-numbers — phi only (CPU, single-number)
+- M6.2b/c (v0.9.x): tau, sigma, mu, gcd, lcm, fibonacci, factorial
+- After v1.0.0 + 1 year: mathematics section
 
 ## 6.10 Not Building
 
@@ -844,8 +850,47 @@ conjectures up to a user-supplied N. Tests are **NOT proofs**.
 **Out of scope**:
 - Conjecture discovery / statistical inference
 - Prime prediction (see 6.10: no ML before v1.0.0)
+
+## 6.15 M6.2 — Numbers Section (voss-numbers)
+
+**[Decision]**: Start numbers section at v0.9.0 (before v1.0.0), scoped
+narrowly to arithmetic functions. Mathematics section remains deferred.
+
+### Scope (M6.2a — v0.9.0)
+
+- New module: `library/src/numbers/`
+- C ABI prefix: `voss_numbers_*`
+- Python package: `voss.numbers`
+- Independent of primes Context (no handle); direct functions only.
+- **phi only** in M6.2a. tau, sigma, mu, gcd, lcm, fibonacci, factorial
+  ship in M6.2b/c (v0.9.x).
+- Full function table and signatures to be added to this section at
+  v0.9.0 planning time.
+
+### Limits
+
+- Single-number only in M6.2 (CPU).
+- Range/array variants (GPU) deferred to M6.3.
+- phi/tau/sigma/mu reuse existing `voss_factorize` (M5.2,
+  Pollard rho + Miller-Rabin) via an internal `distinct_factors(n)`
+  helper. No new factorisation code.
+
+### Milestone plan
+
+- **M6.2a (v0.9.0)**: phi only — skeleton + C ABI + Python wrapper + tests.
+- **M6.2b (v0.9.x)**: tau, sigma, mu.
+- **M6.2c (v0.9.x)**: gcd, lcm, fibonacci, factorial.
+- **M6.3 (v0.10.0)**: range/GPU variants (design TBD).
+
+### Rationale
+
+User-approved scope expansion on 2026-10-01. Original DESIGN.md deferred
+"general numbers" to v2.0+; this section narrows the first step to a
+minimal, testable set and schedules it before v1.0.0.
+
 ## Changelog
 
+- **2026-10-01** — Section 1.4, 6.9, 6.15: voss-numbers planned for M6.x (scope expansion, user-approved). Mathematics section remains v2.0+.
 - **2026-09-30** — Added 6.14 Conjecture Testing (v0.6+, primes section). Empirical tests only, no proofs.
 - **2026-09-30** — M5 expanded into M5.0-M5.4 to include Group A functions
   (is_prime, Sophie Germain, Factorization, Mersenne, Fermat, Goldbach).
