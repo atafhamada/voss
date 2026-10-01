@@ -140,7 +140,7 @@ def test_goldbach_upto(N):
     Parameters
     ----------
     N : int
-        Upper bound (4 <= N <= 10^8).
+        Upper bound (4 <= N <= 10^9).
 
     Returns
     -------
@@ -157,7 +157,7 @@ def test_goldbach_upto(N):
     >>> r["status"]
     'no_counterexample_found_upto_N'
     """
-    _validate_N(N, min_N=4, max_N=10**8)
+    _validate_N(N, min_N=4, max_N=10**9)
     import ctypes
     from . import _capi
     arr = ctypes.POINTER(ctypes.c_uint64)()

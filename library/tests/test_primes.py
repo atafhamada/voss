@@ -38,7 +38,7 @@ def test_import_voss():
     import voss
     assert hasattr(voss, "primes")
     assert hasattr(voss.primes, "prime_count")
-    assert voss.__version__ == "0.5.4"
+    assert voss.__version__ == "0.5.6"
 
 
 @skip_no_cuda
