@@ -1,7 +1,7 @@
 # VOSS - Project State
 
-**Last updated**: 2026-10-01 (voss-numbers M6.2 complete)
-**Current milestone**: M6.2 complete (voss-numbers — 8 functions, CPU)
+**Last updated**: 2026-10-01 (post-v0.9.0, planning next phase)
+**Current milestone**: v0.9.0 shipped; next focus: GPU conjecture expansion (M6.3)
 **Latest release**: v0.9.0 (published on PyPI as `voss`)
 
 ---
@@ -135,8 +135,12 @@
 - Range/GPU variants for voss-numbers (sieve-based phi[], etc.)
 - Design + benchmark required before implementation (per DESIGN.md 6.15)
 
-### voss-math (future)
-- Math section (linear algebra, optimization) — after v1.0.0
+### Next focus (post-v0.9.0)
+- M6.3 (v0.10.0): GPU conjecture expansion — Andrica, Oppermann,
+  Brocard, Polignac, Cramér (see DESIGN.md 6.14).
+- M6.4 (v0.11.0): range/GPU variants for voss-numbers (see DESIGN.md 6.15).
+- Long-term (DESIGN.md 6.16): Number Theory on GPU — no commitment.
+- Commercial path (DESIGN.md 5.14): deferred until a real user segment emerges.
 
 ### v1.0.0 (after dogfooding)
 - 6 months of use -> v1.0.0 release

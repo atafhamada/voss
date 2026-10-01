@@ -80,7 +80,6 @@
 
 **[Decision]** — deferred to v2.0+:
 
-- Mathematics section → later
 - ML → later
 - Cloud API → later
 - N > 10^13 (streaming) → v2.0+
@@ -120,10 +119,16 @@
 
 **[Decision]**:
 
-VOSS will become a platform of 3 sections:
-1. Primes section (now)
-2. General numbers section (later)
-3. Mathematics section (later)
+VOSS will become a platform of 2 sections:
+1. Primes section (done: v0.6-v0.9) — primes, gaps, conjectures
+2. Number Theory on GPU (long-term) — see 6.16
+
+Numbers section (v0.9.0) provides integrated arithmetic functions
+for convenience; it is not a separate strategic pillar.
+
+The Mathematics section (linear algebra, optimization) is dropped
+from scope. It conflicts with VOSS's identity as a GPU prime library
+and competes with NumPy/SciPy/CuPy without advantage.
 
 ---
 
@@ -689,6 +694,19 @@ voss/
 
 ---
 
+
+## 5.14 Commercial Path
+
+**[Decision]**: Deferred. VOSS has no external users today. The
+project builds a unique feature (GPU-accelerated prime conjectures
++ gap statistics); a commercial path will be defined when a real
+user segment emerges. No pricing, no API tiers, no market-driven
+constraints before then.
+
+No public-audience commitments: no strict Semantic Versioning,
+no deprecation policy, no multi-platform wheel guarantees until
+the project warrants them.
+
 # Section 6: Roadmap
 
 ## 6.1 First Milestone (M0)
@@ -787,9 +805,10 @@ assert voss.primes.prev(10**9) == 999_999_937
 
 - After v0.5.0: 6 months dogfooding
 - After 6 months: v1.0.0
-- M6.2 (v0.9.0): voss-numbers — phi only (CPU, single-number)
-- M6.2b/c (v0.9.x): tau, sigma, mu, gcd, lcm, fibonacci, factorial
-- After v1.0.0 + 1 year: mathematics section
+- M6.2 (v0.9.0): voss-numbers — 8 functions (CPU, single-number) — DONE
+- M6.3 (v0.10.0): conjecture expansion (GPU) — see 6.14
+- M6.4 (v0.11.0): number theory on GPU — see 6.16
+- After v1.0.0 + 1 year: full NT suite (long-term)
 
 ## 6.10 Not Building
 
@@ -828,7 +847,7 @@ assert voss.primes.prev(10**9) == 999_999_937
 
 ---
 
-## 6.14 Conjecture Testing (v0.6+, primes section)
+## 6.14 Conjecture Testing
 
 **[Decision]**: VOSS provides **empirical tests** of well-known
 conjectures up to a user-supplied N. Tests are **NOT proofs**.
@@ -836,18 +855,33 @@ conjectures up to a user-supplied N. Tests are **NOT proofs**.
 **Naming convention**: `test_<conjecture>_upto(N)`.
 **Docstring must state**: "Empirical test up to N. Does NOT prove the conjecture."
 
-**In scope (v0.6+)** — use existing functions, no new kernel:
+### Shipped (v0.6.0, primes section)
+
 - Bertrand: prime in (n, 2n) for all n in [2, N]
 - Legendre: prime in (n², (n+1)²) for all n in [1, √N]
 - Goldbach: even n ≥ 4 = sum of two primes, for all even n in [4, N]
+  (GPU kernel `goldbach_upto.cu`, up to 1e9)
 - Chebyshev bias: π(N; 4,3) > π(N; 4,1) up to N
 
-**Deferred (v0.7+)** — require new kernel:
-- Cramér: g_n ≤ (log p_n)²
-- Polignac: for every even k, at least one prime gap = k appears
-- Hardy-Littlewood constants
+### Planned (M6.3, v0.10.0) — new GPU kernels
 
-**Out of scope**:
+- **Andrica**: √p_{n+1} − √p_n < 1 for all consecutive primes up to N
+- **Oppermann**: prime in (n², n(n+1)) and in (n(n+1), (n+1)²)
+  for all n up to √N
+- **Brocard**: at least 4 primes in (p_n², p_{n+1}²) for all n
+- **Polignac**: for every even k, at least one prime gap = k appears
+- **Cramér**: g_n ≤ (log p_n)² for all prime gaps up to N
+
+All M6.3 kernels follow the `goldbach_upto.cu` / `sophie_germain_upto.cu`
+pattern: bitmap + one-thread-per-candidate + atomic counter.
+
+### Deferred (post-v1.0.0)
+
+- Hardy-Littlewood constants (requires high-precision integration)
+- Montgomery-Odlyzko pair correlation (requires zeta zeros)
+
+### Out of scope
+
 - Conjecture discovery / statistical inference
 - Prime prediction (see 6.10: no ML before v1.0.0)
 
@@ -856,31 +890,32 @@ conjectures up to a user-supplied N. Tests are **NOT proofs**.
 **[Decision]**: Start numbers section at v0.9.0 (before v1.0.0), scoped
 narrowly to arithmetic functions. Mathematics section remains deferred.
 
-### Scope (M6.2a — v0.9.0)
+### Scope (shipped in v0.9.0)
 
 - New module: `library/src/numbers/`
 - C ABI prefix: `voss_numbers_*`
 - Python package: `voss.numbers`
 - Independent of primes Context (no handle); direct functions only.
-- **phi only** in M6.2a. tau, sigma, mu, gcd, lcm, fibonacci, factorial
-  ship in M6.2b/c (v0.9.x).
-- Full function table and signatures to be added to this section at
-  v0.9.0 planning time.
+- 8 functions: phi, tau, sigma, mu, gcd, lcm, fibonacci, factorial.
+  All shipped in v0.9.0.
 
 ### Limits
 
 - Single-number only in M6.2 (CPU).
 - Range/array variants (GPU) deferred to M6.3.
-- phi/tau/sigma/mu reuse existing `voss_factorize` (M5.2,
-  Pollard rho + Miller-Rabin) via an internal `distinct_factors(n)`
-  helper. No new factorisation code.
+- phi/tau/sigma/mu reuse existing `voss_primes_factorize` (M5.2,
+  Pollard rho + Miller-Rabin) via two internal helpers:
+  `distinct_factors.hpp` (unique primes for phi) and
+  `factor_exponents.hpp` (prime, exponent pairs for tau/sigma/mu).
+  No new factorisation code.
 
 ### Milestone plan
 
-- **M6.2a (v0.9.0)**: phi only — skeleton + C ABI + Python wrapper + tests.
-- **M6.2b (v0.9.x)**: tau, sigma, mu.
-- **M6.2c (v0.9.x)**: gcd, lcm, fibonacci, factorial.
-- **M6.3 (v0.10.0)**: range/GPU variants (design TBD).
+- **M6.2a**: phi — skeleton + C ABI + Python wrapper + tests.
+- **M6.2b**: tau, sigma, mu.
+- **M6.2c**: gcd, lcm, fibonacci, factorial.
+- All M6.2a/b/c shipped in **v0.9.0** (2026-10-01).
+- **M6.4 (v0.11.0)**: range/GPU variants (design TBD).
 
 ### Rationale
 
@@ -888,9 +923,43 @@ User-approved scope expansion on 2026-10-01. Original DESIGN.md deferred
 "general numbers" to v2.0+; this section narrows the first step to a
 minimal, testable set and schedules it before v1.0.0.
 
+
+## 6.16 Number Theory on GPU (long-term, post-v1.0.0)
+
+**[Decision]**: Long-term research direction for VOSS. Not scheduled for
+v0.x. Requires v1.0.0 completion + 1 year dogfooding + dedicated design.
+
+### Motivation
+
+The GPU infrastructure built for prime conjectures (M6, M6.3) is
+reusable for deeper number theory: zeta zeros, L-functions, elliptic
+curves, modular forms. This is a **long-term research track**, not a
+product feature.
+
+### Candidate areas (unranked, no commitment)
+
+- **Zeta zeros**: Riemann-Siegel formula on GPU; comparison against
+  explicit-formula π(x).
+- **L-functions**: Dirichlet L-values, functional equation tests.
+- **Elliptic curves**: point counting, Tate-Shafarevich heuristics.
+- **Modular forms**: q-expansions, Hecke operators.
+
+### Constraints
+
+- Requires high-precision arithmetic (30+ digits) — GPU simulation is
+  5-20× slower than CPU. Hybrid CPU+GPU likely.
+- Requires expert review before any implementation.
+- No ML before v1.0.0 (see 6.10).
+- Any scope expansion requires its own DESIGN.md section + benchmark.
+
+### Relationship to voss-numbers
+
+voss-numbers (6.15) provides arithmetic functions; 6.16 targets
+research-level number theory. They share infrastructure but not scope.
+
 ## Changelog
 
-- **2026-10-01** — Section 1.4, 6.9, 6.15: voss-numbers planned for M6.x (scope expansion, user-approved). Mathematics section remains v2.0+.
+- **2026-10-01** — voss-numbers shipped in v0.9.0 (M6.2a/b/c, 8 functions). Mathematics section dropped from scope; replaced by 6.16 Number Theory on GPU (long-term). Conjecture expansion planned for M6.3 (v0.10.0, see 6.14). Commercial path deferred (see 5.14).
 - **2026-09-30** — Added 6.14 Conjecture Testing (v0.6+, primes section). Empirical tests only, no proofs.
 - **2026-09-30** — M5 expanded into M5.0-M5.4 to include Group A functions
   (is_prime, Sophie Germain, Factorization, Mersenne, Fermat, Goldbach).
