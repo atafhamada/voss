@@ -5,7 +5,7 @@ from . import conjectures
 from .primes import Context, Statistics, ChebyshevBias, LargeGap
 from .exceptions import VossError
 
-__version__ = "0.5.6"
+__version__ = "0.7.0"
 
 __all__ = ["primes", "conjectures", "Context", "Statistics",
            "ChebyshevBias", "LargeGap", "VossError", "help"]

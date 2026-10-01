@@ -91,6 +91,10 @@ struct voss_primes_ctx {
     // Lazy cache: Sophie Germain count
     uint64_t cached_sophie = 0;
     bool has_sophie = false;
+
+    // Progress callback (M6, v0.7.0)
+    voss_progress_cb progress_cb = nullptr;
+    void* progress_user = nullptr;
 };
 
 // ============================================================
@@ -205,7 +209,9 @@ struct FullResult {
     std::vector<LargeGap> large_gaps; // empty if compute_gaps == false
 };
 
-FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
+FullResult compute_full_impl(uint64_t N, bool compute_gaps,
+                             voss_progress_cb progress_cb,
+                             void* progress_user) {
     FullResult result;
     result.prime_count = 0;
     uint64_t class1_total = 0;
@@ -424,6 +430,11 @@ FullResult compute_full_impl(uint64_t N, bool compute_gaps) {
 
             total += n_pos;
 
+            if (progress_cb) {
+                progress_cb((int)(seg + 1), (int)NUM_SEG,
+                            n_pos, total, progress_user);
+            }
+
             if (compute_gaps && n_pos > 0) {
                 // Sort positions
                 thrust::device_ptr<uint64_t> ptr(positions_d);
@@ -600,7 +611,8 @@ static int ensure_full_computed(voss_primes_ctx* ctx) {
     }
     bool need_gaps = (ctx->profile != VOSS_PROFILE_MINIMAL);
     try {
-        FullResult r = compute_full_impl(ctx->N, need_gaps);
+        FullResult r = compute_full_impl(ctx->N, need_gaps,
+                                     ctx->progress_cb, ctx->progress_user);
         ctx->cached_prime_count = r.prime_count;
         ctx->has_prime_count = true;
         if (need_gaps) {
@@ -625,6 +637,18 @@ static int ensure_full_computed(voss_primes_ctx* ctx) {
 // ============================================================
 // Public C API — queries
 // ============================================================
+extern "C" int voss_primes_ctx_set_progress(voss_primes_ctx* ctx,
+                                            voss_progress_cb cb,
+                                            void* user) {
+    if (ctx == nullptr) {
+        voss_set_last_error("ctx is null");
+        return VOSS_ERR_INVALID_ARG;
+    }
+    ctx->progress_cb = cb;
+    ctx->progress_user = user;
+    return VOSS_OK;
+}
+
 extern "C" int voss_primes_ctx_prime_count(voss_primes_ctx* ctx, uint64_t* out) {
     if (ctx == nullptr) {
         voss_set_last_error("ctx is null");

@@ -239,3 +239,24 @@ def _check(rc: int, errcode_map: dict):
     msg = _lib.voss_get_last_error().decode("utf-8", errors="replace")
     short = _lib.voss_strerror(rc).decode("utf-8", errors="replace")
     raise cls(f"{short}: {msg}")
+
+# ============================================================
+# Progress callback (M6, v0.7.0)
+# ============================================================
+PROGRESS_CB = ctypes.CFUNCTYPE(
+    None,
+    ctypes.c_int,       # seg
+    ctypes.c_int,       # total
+    ctypes.c_uint64,    # primes_in_seg
+    ctypes.c_uint64,    # cumulative
+    ctypes.c_void_p,    # user
+)
+
+try:
+    _lib.voss_primes_ctx_set_progress.argtypes = [
+        ctypes.c_void_p, PROGRESS_CB, ctypes.c_void_p
+    ]
+    _lib.voss_primes_ctx_set_progress.restype = ctypes.c_int
+except AttributeError as e:
+    print("warning: set_progress symbol not found:", e)
+

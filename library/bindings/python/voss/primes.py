@@ -230,6 +230,40 @@ class Context:
             _capi._lib.voss_primes_ctx_free(self._ctx)
             self._ctx = None
 
+    def set_progress(self, callback):
+        """Register a progress callback (called after each internal segment).
+
+        callback(seg, total, primes_in_seg, cumulative):
+            seg           : 1-based segment number
+            total         : total number of segments
+            primes_in_seg : primes found in this segment
+            cumulative    : cumulative prime count so far
+
+        Pass None to clear.
+        """
+        if self._ctx is None:
+            raise VossError("Context is closed")
+
+        if callback is None:
+            null_cb = ctypes.cast(None, _capi.PROGRESS_CB)
+            _capi._lib.voss_primes_ctx_set_progress(self._ctx, null_cb, None)
+            self._progress_cb_ref = None
+            return
+
+        if not callable(callback):
+            raise TypeError("callback must be callable or None")
+
+        def _trampoline(seg, total, primes_in_seg, cumulative, user):
+            try:
+                callback(seg, total, primes_in_seg, cumulative)
+            except Exception:
+                pass
+
+        cb = _capi.PROGRESS_CB(_trampoline)
+        rc = _capi._lib.voss_primes_ctx_set_progress(self._ctx, cb, None)
+        _capi._check(rc, {})
+        self._progress_cb_ref = cb
+
     def __del__(self):
         # Best-effort cleanup (in case user forgot `with`)
         try:

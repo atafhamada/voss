@@ -140,6 +140,19 @@ int voss_primes_is_mersenne_prime(uint32_t p, int* out);
 int voss_primes_is_fermat_prime(uint32_t n, int* out);
 
 // ============================================================
+// Progress callback (M6, v0.7.0)
+// ============================================================
+// Called after each internal segment during Context computation.
+typedef void (*voss_progress_cb)(int seg, int total,
+                                 uint64_t primes_in_seg,
+                                 uint64_t cumulative,
+                                 void* user);
+
+int voss_primes_ctx_set_progress(voss_primes_ctx* ctx,
+                                 voss_progress_cb cb,
+                                 void* user);
+
+// ============================================================
 // Goldbach partitions (M5.4)
 // ============================================================
 // Count pairs (p1, p2) with p1 <= p2 both prime and p1 + p2 == n.
