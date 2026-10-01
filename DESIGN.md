@@ -822,8 +822,31 @@ assert voss.primes.prev(10**9) == 999_999_937
 
 ---
 
+## 6.14 Conjecture Testing (v0.6+, primes section)
+
+**[Decision]**: VOSS provides **empirical tests** of well-known
+conjectures up to a user-supplied N. Tests are **NOT proofs**.
+
+**Naming convention**: `test_<conjecture>_upto(N)`.
+**Docstring must state**: "Empirical test up to N. Does NOT prove the conjecture."
+
+**In scope (v0.6+)** — use existing functions, no new kernel:
+- Bertrand: prime in (n, 2n) for all n in [2, N]
+- Legendre: prime in (n², (n+1)²) for all n in [1, √N]
+- Goldbach: even n ≥ 4 = sum of two primes, for all even n in [4, N]
+- Chebyshev bias: π(N; 4,3) > π(N; 4,1) up to N
+
+**Deferred (v0.7+)** — require new kernel:
+- Cramér: g_n ≤ (log p_n)²
+- Polignac: for every even k, at least one prime gap = k appears
+- Hardy-Littlewood constants
+
+**Out of scope**:
+- Conjecture discovery / statistical inference
+- Prime prediction (see 6.10: no ML before v1.0.0)
 ## Changelog
 
+- **2026-09-30** — Added 6.14 Conjecture Testing (v0.6+, primes section). Empirical tests only, no proofs.
 - **2026-09-30** — M5 expanded into M5.0-M5.4 to include Group A functions
   (is_prime, Sophie Germain, Factorization, Mersenne, Fermat, Goldbach).
   Total v0.5.0 timeline: 13-15 weeks → 18-20 weeks.
