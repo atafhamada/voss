@@ -52,6 +52,10 @@ def test_all_exports():
         "test_legendre_upto",
         "test_goldbach_upto",
         "test_chebyshev_bias_upto",
+        "iter_bertrand_upto",
+        "iter_legendre_upto",
+        "iter_goldbach_upto",
+        "iter_chebyshev_bias_upto",
     }
 
 
@@ -201,9 +205,9 @@ def test_goldbach_min_N_error():
 
 def test_goldbach_max_N_error():
     import voss
-    # max_N is now 10^8 (GPU path); 10^9 exceeds it
+    # max_N is now 10^9 (GPU path); 10^10 exceeds it
     with pytest.raises(voss.VossError):
-        voss.conjectures.test_goldbach_upto(10**9)
+        voss.conjectures.test_goldbach_upto(10**10)
 
 
 def test_chebyshev_bias_min_N_error():
@@ -216,3 +220,82 @@ def test_chebyshev_bias_max_N_error():
     import voss
     with pytest.raises(voss.VossError):
         voss.conjectures.test_chebyshev_bias_upto(10**8)
+
+# ============================================================
+# iter_* — streaming variants
+# ============================================================
+
+@skip_no_cuda
+def test_iter_bertrand_yields_pairs():
+    import voss
+    items = list(voss.conjectures.iter_bertrand_upto(20))
+    assert len(items) == 19  # n = 2..20
+    # كل عنصر: (n, p) حيث p أصغر أولي > n
+    for n, p in items:
+        assert p > n
+        assert p < 2 * n  # Bertrand
+
+
+@skip_no_cuda
+def test_iter_bertrand_is_lazy():
+    """Generator — first item yields immediately."""
+    import voss
+    gen = voss.conjectures.iter_bertrand_upto(10**6)
+    n, p = next(gen)  # لا يجب أن يبني كل القائمة
+    assert n == 2
+    assert p == 3
+    gen.close()
+
+
+@skip_no_cuda
+def test_iter_legendre_yields_pairs():
+    import voss
+    items = list(voss.conjectures.iter_legendre_upto(100))
+    assert len(items) == 9  # n = 1..9, isqrt(100) = 10
+    for n, p in items:
+        assert n * n < p < (n + 1) * (n + 1)
+
+
+@skip_no_cuda
+def test_iter_chebyshev_bias_yields_counts():
+    import voss
+    counterexamples = []
+    for p, c1, c3 in voss.conjectures.iter_chebyshev_bias_upto(50):
+        if c3 <= c1:
+            counterexamples.append(p)
+    # القيم المعروفة: 5, 17, 41
+    assert 5 in counterexamples
+    assert 17 in counterexamples
+    assert 41 in counterexamples
+
+
+@skip_no_cuda
+def test_iter_goldbach_no_counterexamples():
+    import voss
+    items = list(voss.conjectures.iter_goldbach_upto(10**6))
+    assert items == []  # Goldbach holds up to 10^6
+
+
+def test_iter_bertrand_type_error():
+    import voss
+    with pytest.raises(TypeError):
+        list(voss.conjectures.iter_bertrand_upto("hello"))
+
+
+def test_iter_legendre_type_error():
+    import voss
+    with pytest.raises(TypeError):
+        list(voss.conjectures.iter_legendre_upto(3.14))
+
+
+def test_iter_bertrand_max_N_error():
+    import voss
+    with pytest.raises(voss.VossError):
+        list(voss.conjectures.iter_bertrand_upto(10**8))
+
+
+def test_iter_goldbach_max_N_error():
+    import voss
+    with pytest.raises(voss.VossError):
+        list(voss.conjectures.iter_goldbach_upto(10**10))
+

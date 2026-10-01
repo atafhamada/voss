@@ -232,9 +232,150 @@ def test_chebyshev_bias_upto(N):
     return _make_result("chebyshev_bias", N, counterexamples)
 
 
+def iter_bertrand_upto(N):
+    """Stream (n, next_prime(n)) for n in [2, N].
+
+    Useful for long-running tests: results arrive one by one,
+    so progress is visible immediately.
+
+    Parameters
+    ----------
+    N : int
+        Upper bound (2 <= N <= 10^7).
+
+    Yields
+    ------
+    (n, p) : tuple of int
+        p = smallest prime > n. Bertrand says p < 2*n.
+
+    Examples
+    --------
+    >>> import voss
+    >>> for n, p in voss.conjectures.iter_bertrand_upto(100):
+    ...     if p >= 2 * n:
+    ...         print("counterexample", n)
+
+    Note
+    ----
+    Empirical — does NOT prove the conjecture.
+    """
+    _validate_N(N, min_N=2, max_N=10**7)
+    for n in range(2, N + 1):
+        yield n, primes.next_prime(n)
+
+
+def iter_legendre_upto(N):
+    """Stream (n, next_prime(n^2)) for n in [1, isqrt(N)-1].
+
+    Legendre says there is a prime in (n^2, (n+1)^2).
+
+    Parameters
+    ----------
+    N : int
+        Upper bound (2 <= N <= 10^14).
+
+    Yields
+    ------
+    (n, p) : tuple of int
+        p = smallest prime > n^2.
+
+    Note
+    ----
+    Empirical — does NOT prove the conjecture.
+    """
+    _validate_N(N, min_N=2, max_N=10**14)
+    n_max = math.isqrt(N)
+    for n in range(1, n_max):
+        upper = (n + 1) * (n + 1)
+        if upper > N:
+            break
+        yield n, primes.next_prime(n * n)
+
+
+def iter_chebyshev_bias_upto(N):
+    """Stream (p, c1, c3) for each prime p <= N (excluding 2).
+
+    c1 = count of primes <= p that are 1 (mod 4)
+    c3 = count of primes <= p that are 3 (mod 4)
+
+    Chebyshev's strict bias says c3 > c1 for all p; this iterator
+    lets the caller see exactly where that fails (5, 17, 41, ...).
+
+    Parameters
+    ----------
+    N : int
+        Upper bound (3 <= N <= 10^7).
+
+    Yields
+    ------
+    (p, c1, c3) : tuple of int
+
+    Note
+    ----
+    Empirical — does NOT prove the conjecture.
+    """
+    _validate_N(N, min_N=3, max_N=10**7)
+    ps = primes.in_range(2, N)
+    c1 = 0
+    c3 = 0
+    for p in ps:
+        if p == 2:
+            continue
+        if p % 4 == 1:
+            c1 += 1
+        else:
+            c3 += 1
+        yield p, c1, c3
+
+
+def iter_goldbach_upto(N):
+    """Yield Goldbach counterexamples for even n in [4, N].
+
+    Note: Goldbach is checked on GPU in one batch, so this iterator
+    yields only the counterexamples (usually none). It is provided
+    for API symmetry with the other iter_* functions.
+
+    Parameters
+    ----------
+    N : int
+        Upper bound (4 <= N <= 10^9).
+
+    Yields
+    ------
+    int
+        An even n in [4, N] with no Goldbach partition.
+
+    Note
+    ----
+    Empirical — does NOT prove the conjecture.
+    """
+    _validate_N(N, min_N=4, max_N=10**9)
+    import ctypes
+    from . import _capi
+    arr = ctypes.POINTER(ctypes.c_uint64)()
+    cnt = ctypes.c_uint64(0)
+    rc = _capi._lib.voss_primes_goldbach_test_upto(
+        ctypes.c_uint64(N),
+        ctypes.byref(arr),
+        ctypes.byref(cnt),
+        ctypes.c_uint64(10),
+    )
+    _capi._check(rc, {})
+    if arr and cnt.value > 0:
+        try:
+            for i in range(cnt.value):
+                yield int(arr[i])
+        finally:
+            _capi._lib.voss_free(arr)
+
+
 __all__ = [
     "test_bertrand_upto",
     "test_legendre_upto",
     "test_goldbach_upto",
     "test_chebyshev_bias_upto",
+    "iter_bertrand_upto",
+    "iter_legendre_upto",
+    "iter_goldbach_upto",
+    "iter_chebyshev_bias_upto",
 ]
