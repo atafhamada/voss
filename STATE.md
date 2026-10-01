@@ -78,6 +78,8 @@
   Root cause: VOSS uses segmented sieve O(N log log N);
   sympy uses Meissel-Lehmer O(N^(2/3)).
   VOSS's edge is gap computation, not single-N prime_count at large N.
+- WHEEL has `Root-Is-Purelib: true` (should be `false` per PEP 427;
+  works on Linux due to purelib == platlib). Fix in a future release.
 
 ---
 
