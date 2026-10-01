@@ -24,6 +24,25 @@ pip install voss
 > Note: the old `voss-prime-gaps` package on PyPI is deprecated. Use `voss`.
 > https://pypi.org/project/voss-prime-gaps/ (deprecated)
 
+## Platform support
+
+| Component | Supported |
+|-----------|-----------|
+| OS | Linux x86_64 (manylinux_2_17) |
+| Python | 3.9+ |
+| CUDA | 12.x |
+| CMake | 3.22+ (build from source only) |
+
+**GPU tiers** (per `DESIGN.md` 5.7):
+
+| Tier | GPUs | Status |
+|------|------|--------|
+| Tier 1 | A100 (sm_80), T4 (sm_75) | Officially supported |
+| Tier 2 | H100 (sm_90), L4/G4 (sm_89) | May work, untested |
+| Tier 3 | RTX 40xx/50xx, H200, B100 | Future |
+
+**Windows and macOS are not supported in v0.x.**
+
 ## Status
 
 | Milestone | Version | What |
