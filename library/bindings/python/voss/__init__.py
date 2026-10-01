@@ -1,13 +1,14 @@
 """VOSS: GPU-accelerated prime gap library."""
 
 from . import primes
+from . import conjectures
 from .primes import Context, Statistics, ChebyshevBias, LargeGap
 from .exceptions import VossError
 
 __version__ = "0.5.6"
 
-__all__ = ["primes", "Context", "Statistics", "ChebyshevBias", "LargeGap",
-           "VossError", "help"]
+__all__ = ["primes", "conjectures", "Context", "Statistics",
+           "ChebyshevBias", "LargeGap", "VossError", "help"]
 
 
 def help(topic: str = None) -> None:

@@ -153,6 +153,17 @@ int voss_primes_goldbach_partitions(uint64_t n,
                                    uint64_t** out_array,
                                    uint64_t* out_count);
 
+// ============================================================
+// Goldbach empirical test up to N (M6, GPU)
+// ============================================================
+// Test Goldbach's conjecture for all even n in [4, N] on GPU.
+// Returns the first max_ce counterexamples (n with no Goldbach pair).
+// Array is malloc'd, freed by voss_free.
+int voss_primes_goldbach_test_upto(uint64_t N,
+                                   uint64_t** out_counterexamples,
+                                   uint64_t* out_count,
+                                   uint64_t max_counterexamples);
+
 #ifdef __cplusplus
 }
 #endif
